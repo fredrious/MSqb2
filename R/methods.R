@@ -1,68 +1,256 @@
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-# import all objects from parent environment (parent env.)
-.impTopEnv <- function() {
+#' Import Objects from Parent Environment
+#'
+#' This function imports all objects from the parent environment of the caller
+#' into the current environment. It retrieves the objects from the environment
+#' that is two levels up from the current environment and places them into the
+#' environment that is one level up.
+#'
+#' @details The function uses `mget` to get the objects from the parent environment
+#' and `list2env` to import them into the current environment. It is useful when
+#' you need to bring objects from a higher level environment into the current scope.
+#'
+#' @return NULL
+#' @examples
+#' # Example usage:
+#' a <- 1
+#' b <- 2
+#' {
+#'   c <- 3
+#'   impTopEnv()
+#'   # Now `a` and `b` are available in this environment
+#'   print(a)  # Should print 1
+#'   print(b)  # Should print 2
+#' }
+#'
+#' @export
+impTopEnv <- function() {
    list2env(mget(names(parent.frame(n = 2)), envir = parent.frame(n = 2)),
             envir = parent.frame(n = 1))
 }
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-# export all objects to parent environment (parent env.)
-.expTopEnv <- function() {
+#' Export Objects to Parent Environment
+#'
+#' This function exports all objects from the current environment to the parent
+#' environment. It retrieves the objects from the current environment and places
+#' them into the environment that is one level up from the current environment.
+#'
+#' @details The function uses `mget` to get the objects from the current environment
+#' and `list2env` to export them to the parent environment. This is useful when you
+#' need to make objects available to a higher-level scope.
+#'
+#' @return NULL
+#' @examples
+#' # Example usage:
+#' {
+#'   a <- 1
+#'   b <- 2
+#'   # a and b are in the current environment
+#'   expTopEnv()
+#'   # a and b should now be available in the parent environment
+#'   print(parent.frame()$a)  # Should print 1
+#'   print(parent.frame()$b)  # Should print 2
+#' }
+#'
+#' @export
+expTopEnv <- function() {
    list2env(mget(names(parent.frame(n = 1)), envir = parent.frame(n = 1)),
             envir = parent.frame(n = 2))
 }
 
+
+
+
+
 # %%%%%%%%%%%%%%%%%%%%%%%%
-# import (expand) all variables in a list to the current environment
-.expandList <- function(x) {
-   list2env(mget(names(x), envir = as.environment(x)),
-            envir = parent.frame())
+#' Expand List into Parent Environment
+#'
+#' This function takes a named list of objects and imports these objects into
+#' the parent environment of the function call. The objects in the list are
+#' retrieved using their names and placed into the environment one level up
+#' from the current environment.
+#'
+#' @param x A named list where each element will be imported into the parent environment.
+#'
+#' @details The function uses `mget` to retrieve objects from the environment
+#' specified by the list `x` and `list2env` to export them to the parent environment.
+#' This is useful when you want to make multiple objects from a list available
+#' in the environment where the function was called.
+#'
+#' @return NULL
+#' @examples
+#' # Example usage:
+#' a <- 1
+#' b <- 2
+#' my_list <- list(a = a, b = b)
+#' {
+#'   c <- 3
+#'   expandList(my_list)
+#'   # Now `a` and `b` are available in this environment
+#'   print(a)  # Should print 1
+#'   print(b)  # Should print 2
+#' }
+#'
+#' @export
+expandList <- function(x) {
+  list2env(mget(names(x), envir = as.environment(x)),
+           envir = parent.frame())
 }
 
 
-# %%%%%%%%%%%%%%%%%%%%%%%%
-# Assign variable in Parent Environment of a function
-# either one step backward (n=2 in `%<-1%`) or 2 steps (n=3 in  `%<-2%`)
-`%<-1%` <- function(x, y) { assign(x, y, pos = parent.frame(n = 2)) }
-`%<-g%` <- function(x, y) { assign(x, y, pos = .GlobalEnv) }
+
 
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## check build arguments
+#' Custom Assignment Operator for Parent Environment
+#'
+#' This custom operator `%<-1%` assigns a value to a variable in the parent
+#' environment of the function where it is called. It is a shorthand for
+#' assigning a value to an object one level up in the environment hierarchy.
+#'
+#' @param x A character string specifying the name of the variable to which the
+#' value should be assigned.
+#' @param y The value to be assigned to the variable.
+#'
+#' @details The operator uses `assign` to place the value `y` into a variable named `x`
+#' in the parent environment of the caller, specifically in the environment that is
+#' two levels up from the current environment.
+#'
+#' @return The value `y`, invisibly.
+#' @examples
+#' # Example usage:
+#' a <- 1
+#' {
+#'   b %<-1% 2
+#'   print(b)  # Should print 2, as `b` is assigned in the parent environment
+#' }
+#'
+#' @export
+`%<-1%` <- function(x, y) {
+  assign(x, y, pos = parent.frame(n = 2))
+}
+
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%
+#' Custom Assignment Operator for Global Environment
+#'
+#' This custom operator `%<-g%` assigns a value to a variable in the global
+#' environment, regardless of the current environment where it is called.
+#' It provides a convenient way to assign values to variables in the global
+#' environment directly from within functions or other environments.
+#'
+#' @param x A character string specifying the name of the variable to which the
+#' value should be assigned.
+#' @param y The value to be assigned to the variable.
+#'
+#' @details The operator uses `assign` to place the value `y` into a variable named `x`
+#' in the global environment. This can be useful for modifying global variables
+#' from within functions or other non-global environments.
+#'
+#' @return The value `y`, invisibly.
+#' @examples
+#' # Example usage:
+#' my_global_var <- NULL
+#' {
+#'   "my_global_var" %<-g% 10
+#'   print(my_global_var)  # Should print 10, as `my_global_var` is assigned in the global environment
+#' }
+#'
+#' @export
+`%<-g%` <- function(x, y) {
+  assign(x, y, pos = .GlobalEnv)
+}
+
+
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%
+#' Validate Build Arguments
+#'
+#' This function performs validation checks on several build arguments. It ensures
+#' that the arguments conform to expected types, lengths, and values. The function
+#' utilizes various assertion functions to validate the arguments and log assertions
+#' using the `MSqb2` package's logging functions.
+#'
+#' @details The function imports objects from the parent environment using `impTopEnv`
+#' and then performs validation on the following arguments:
+#' \itemize{
+#'   \item `measurements.file` - Must be a character vector.
+#'   \item `metadata.file` - Must be a character vector of length 1.
+#'   \item `measurements.file.sheet` - Either a character vector of length 1 or an integer, or NULL.
+#'   \item `metadata.file.sheet` - Either a character vector of length 1 or an integer, or NULL.
+#'   \item `ms.software` - Must be one of the specified choices ("MQ", "PD").
+#'   \item `analysis.name` - Character vector of length 1 or NULL.
+#'   \item `ms.software` - Character vector of length 1, not NULL.
+#'   \item `prefix` - Character vector of length 1 or NULL.
+#'   \item `suffix` - Character vector of length 1 or NULL.
+#'   \item `add.date.tag` - Logical value.
+#' }
+#'
+#' @return NULL
+#' @examples
+#' # Example usage:
+#' # Assuming these variables are defined and imported from the parent environment:
+#' measurements.file <- "data.csv"
+#' metadata.file <- "metadata.csv"
+#' measurements.file.sheet <- "Sheet1"
+#' metadata.file.sheet <- "Sheet1"
+#' ms.software <- "MQ"
+#' analysis.name <- "Analysis1"
+#' prefix <- "prefix_"
+#' suffix <- "suffix_"
+#' add.date.tag <- TRUE
+#'
+#' .checkBuildArgs()
+#'
+#' @import checkmate
+#' @export
 .checkBuildArgs <- function() {
 
-   .impTopEnv() #import all objects from 1 env backward (parent.frame)
+  impTopEnv() # import all objects from 1 env backward (parent.frame)
 
-   MSqb2:::.loggAssert(assertCharacter(measurements.file))
-   MSqb2:::.loggAssert(assertCharacter(metadata.file, len = 1))
+  MSqb2:::.loggAssert(assertCharacter(measurements.file))
+  MSqb2:::.loggAssert(assertCharacter(metadata.file, len = 1))
 
-   assert(checkCharacter(measurements.file.sheet, len = 1),
-          checkInt(measurements.file.sheet, null.ok = TRUE),
-          combine = "or")
+  assert(checkCharacter(measurements.file.sheet, len = 1),
+         checkInt(measurements.file.sheet, null.ok = TRUE),
+         combine = "or")
 
-   assert(checkCharacter(metadata.file.sheet, len = 1),
-          checkInt(metadata.file.sheet, null.ok = TRUE),
-          combine = "or")
+  assert(checkCharacter(metadata.file.sheet, len = 1),
+         checkInt(metadata.file.sheet, null.ok = TRUE),
+         combine = "or")
 
+  assert(checkChoice(ms.software, c("MQ", "PD")))
 
-   assert(checkChoice(ms.software, c("MQ", "PD")))
+  MSqb2:::.loggAssert(assertCharacter(analysis.name, len = 1, null.ok = TRUE))
+  MSqb2:::.loggAssert(assertCharacter(ms.software, len = 1, null.ok = FALSE))
+  MSqb2:::.loggAssert(assertCharacter(prefix, len = 1, null.ok = TRUE))
+  MSqb2:::.loggAssert(assertCharacter(suffix, len = 1, null.ok = TRUE))
 
-   MSqb2:::.loggAssert(assertCharacter(analysis.name, len = 1, null.ok = TRUE))
-   MSqb2:::.loggAssert(assertCharacter(ms.software, len = 1, null.ok = FALSE))
-   MSqb2:::.loggAssert(assertCharacter(prefix, len = 1, null.ok = TRUE))
-   MSqb2:::.loggAssert(assertCharacter(suffix, len = 1, null.ok = TRUE))
-
-   MSqb2:::.loggAssert(assertLogical(add.date.tag))
+  MSqb2:::.loggAssert(assertLogical(add.date.tag))
 }
 
 
 
 
+
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## logging wrapper file (issue with colored text in appender_file. )
+#' Log Messages with Levels and Outputs
+#'
+#' This function logs messages with different levels to both a file and the console.
+#' It uses the `logger` package to handle the formatting and output.
+#'
+#' @param level The log level (e.g., "info", "warn", "error", "fatal").
+#' @param msg The message to log.
+#'
+#' @return NULL
+#' @import logger magrittr
+#' @export
 .logg <- function(level, msg) {
 
    # define/call log file
@@ -105,23 +293,94 @@
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## make sub directories
+#' Create Subdirectories with Custom Naming
+#'
+#' This function creates a set of subdirectories within a specified path.
+#' The names of these subdirectories are constructed using optional prefix,
+#' suffix, analysis name, and date tag parameters. It also assigns the
+#' paths of these subdirectories to global environment variables for later use.
+#'
+#' @param path A character string specifying the base path where subdirectories will be created.
+#' @param sub.dir A character vector of subdirectory names to be created within the base path.
+#' @param prefix An optional character string to prefix each subdirectory name. Default is `NULL`.
+#' @param analysis.name An optional character string to include in the subdirectory name. Default is `NULL`.
+#' @param suffix An optional character string to suffix each subdirectory name. Default is `NULL`.
+#' @param add.date.tag An optional character string representing a date tag to be included in the subdirectory name. Default is `NULL`.
+#'
+#' @details
+#' The function constructs each subdirectory name by concatenating the prefix, subdirectory name, analysis name,
+#' suffix, and date tag, separated by underscores. If any of these parameters are `NULL`, they are omitted
+#' from the name construction. After creating the directories, the function assigns their paths to global
+#' environment variables named `<sub_dir>.path` for each subdirectory.
+#'
+#' @return NULL
+#' @examples
+#' # Create subdirectories with specific naming components
+#' .mk.dir(
+#'   path = tempdir(),
+#'   sub.dir = c("data", "results"),
+#'   prefix = "project",
+#'   analysis.name = "analysis1",
+#'   suffix = "v1",
+#'   add.date.tag = Sys.Date()
+#' )
+#'
+#' # Check the paths assigned to global environment variables
+#' print(data.path)
+#' print(results.path)
+#'
+#' @export
 .mk.dir <- function(path, sub.dir, prefix = NULL, analysis.name = NULL,
                     suffix = NULL, add.date.tag = NULL) {
-   for (i in seq_along(sub.dir)) {
-      sdir.p <- file.path(path,
-                          paste(c(prefix, sub.dir[i], analysis.name, suffix, add.date.tag),
-                                collapse = "_"))
-      ifelse(!dir.exists(sdir.p), dir.create(sdir.p, recursive = TRUE), FALSE)
-      paste0(sub.dir[i], ".path") %<-1% sdir.p
-   }
+  for (i in seq_along(sub.dir)) {
+    sdir.p <- file.path(path,
+                        paste(c(prefix, sub.dir[i], analysis.name, suffix, add.date.tag),
+                              collapse = "_"))
+    if (!dir.exists(sdir.p)) {
+      dir.create(sdir.p, recursive = TRUE)
+    }
+    assign(paste0(sub.dir[i], ".path"), sdir.p, envir = .GlobalEnv)
+  }
 }
 
 
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## find input file (used inside .check.dir)
+#' Find Files Matching Input Patterns
+#'
+#' This function searches for files in a specified directory that match patterns provided in the `input` parameter.
+#' It logs an error if multiple matches are found for any pattern and updates the environment with the results.
+#'
+#' @param input A named list where names are the patterns to search for in file names.
+#' @param output A named list where names are the expected outputs. The function will append the found file paths to this list.
+#' @param toData A named list of additional data to be included in the environment after searching.
+#' @param where A character string specifying the directory where the search should be performed.
+#'
+#' @details
+#' The function searches for files in the `where` directory that match each pattern in the `input` list.
+#' If multiple files match a single pattern, an error is logged using the `.logg` function. The function
+#' appends the file paths to the `output` list and updates the environment with `output`, `input`, and `toData`.
+#'
+#' @return NULL
+#' @examples
+#' # Example usage
+#' input_patterns <- list(pattern1 = "file1.csv", pattern2 = "file2.csv")
+#' output_list <- list()
+#' additional_data <- list()
+#' directory <- tempdir()
+#'
+#' # Create example files in the directory
+#' file.create(file.path(directory, "file1.csv"))
+#' file.create(file.path(directory, "file2.csv"))
+#'
+#' .find.file(input = input_patterns, output = output_list, toData = additional_data, where = directory)
+#'
+#' # Check the results in the environment
+#' print(output_list)
+#'
+#' @import glue
+
 .find.file <- function(input, output, toData, where) {
 
    # input %<>% .[setdiff(names(input), names(output))] ## check this !!!
@@ -152,7 +411,31 @@
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## check input data directories and copy to Data if approved by user
+#' Check and Validate File Paths
+#'
+#' This function verifies the existence of files specified in the `input` list. It checks if these files are
+#' either full paths that exist, or if they can be found in a specified directory (`dpth`) or the working directory.
+#' If files are missing, the function logs an error or warning and optionally copies the files to the `dpth` directory.
+#'
+#' @param input A named list where names are file names or patterns and values are file paths. If a value is `NULL`,
+#'   it will be ignored.
+#' @param dpth A character string specifying the directory path to search for files. Default is `Data.path`.
+#' @param toData A logical value indicating whether to copy files to the `dpth` directory if they are not already there. Default is `FALSE`.
+#' @param interactive A logical value indicating whether the function should prompt the user interactively to copy files. Default is `TRUE`.
+#'
+#' @details
+#' The function first checks if the files in `input` are full paths and exist. If so, it updates the `output` list
+#' and sets `toData` to `TRUE`. If not, it searches for these files in the specified `dpth` directory and, if necessary,
+#' in the working directory. If files are still not found, it logs a fatal message.
+#' If `toData` is `TRUE` and `interactive` is `TRUE`, the user will be prompted to copy missing files to the `dpth` directory.
+#'
+#' @return A named list of files with their paths. If files were copied, their paths in the `dpth` directory are returned.
+#' @examples
+#' # Example usage
+#' input_files <- list(file1 = "path/to/file1.csv", file2 = "path/to/file2.csv")
+#' output_files <- .check.file(input = input_files, dpth = tempdir(), toData = TRUE, interactive = TRUE)
+#' print(output_files)
+#'
 .check.file <- function(input, dpth = Data.path, toData = FALSE, interactive = TRUE) {
 
    input %<>% lapply(., function(x) !is.null(x)) %>% unlist %>% input[.]
@@ -228,6 +511,30 @@
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
+#' Read Data from File
+#'
+#' Reads data from a file, supporting both Excel files (`.xlsx`, `.xls`) and tab-delimited text files.
+#' The function converts the data into a `data.table` object and applies a conversion to factors if necessary.
+#'
+#' @param file A character string specifying the file path to read. The file can be an Excel file (with `.xlsx` or `.xls` extension)
+#'   or a tab-delimited text file.
+#' @param sheet An integer specifying the sheet number to read from the Excel file. Default is `1`.
+#'
+#' @details
+#' The function checks the file extension to determine whether it should use `readxl::read_excel` for Excel files or
+#' `data.table::fread` for text files. After reading the data, the function converts it to a `data.table` and applies
+#' `MSqb2::char2fact` to ensure that character columns are converted to factors.
+#'
+#' @return A `data.table` object containing the data read from the file.
+#' @examples
+#' # Example usage with a tab-delimited file
+#' data <- read.file("path/to/datafile.txt")
+#'
+#' # Example usage with an Excel file
+#' data <- read.file("path/to/datafile.xlsx", sheet = 2)
+#'
+#' @import readxl
+#' @export
 read.file <- function(file, sheet = 1) {
 
    ext <- toupper(strsplit2(file, "\\.")[-1])
@@ -236,7 +543,7 @@ read.file <- function(file, sheet = 1) {
    } else {
       dt <- fread(file, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
    }
-   MSqb2::char2fact(dt) %>% 
+   MSqb2::char2fact(dt) %>%
    return()
 }
 
@@ -244,7 +551,25 @@ read.file <- function(file, sheet = 1) {
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## import config parameters from file (call from msqb_config)
+#' Import Configuration Parameters from a File
+#'
+#' Imports configuration parameters from a specified file or generates a new configuration file if none exists.
+#' This function is typically called from `msqb_config` and supports both workflow and visualization configurations.
+#'
+#' @param conf.fl A character string specifying the path to the configuration file. If `NULL`, a new configuration file is generated.
+#' @param Scripts.path A character string specifying the path where the scripts and configuration files are located.
+#' @param analysis.name A character string specifying the analysis name to include in the configuration file name. Default is `NULL`.
+#' @param add.date.tag A character string specifying a date tag to append to the configuration file name. Default is `NULL`.
+#' @param whichConf A character string specifying the type of configuration ("workflow" or "viz").
+#' @param conf.args A list of additional configuration arguments that can override parameters in the configuration file.
+#'
+#' @details
+#' If the specified configuration file does not exist or is `NULL`, the function creates a new configuration file
+#' with default parameters in the specified `Scripts.path`. The function reads the configuration file and evaluates
+#' its content in the parent environment.
+#'
+#' @return A character string specifying the path to the imported or generated configuration file.
+#' @import glue
 .importConfigfile <- function(conf.fl, Scripts.path, analysis.name,
                               add.date.tag, whichConf, conf.args) {
 
@@ -282,10 +607,23 @@ read.file <- function(file, sheet = 1) {
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## combine logger and checkmate, so the assertion message will have the default msqb format
+#' Log and Assert Conditions
+#'
+#' Asserts conditions and logs error messages if any assertions fail. This function captures and processes
+#' assertion expressions, evaluates them, and logs errors using the `.logg` function if the assertions are not met.
+#'
+#' @param xpr An expression containing the assertion(s) to evaluate. The expression should be a call to a checkmate
+#'   assertion function (e.g., `assertCharacter`, `assertLogical`) without the `add` parameter.
+#'
+#' @details
+#' The function captures the provided expression, modifies it to include the `add` parameter for collecting assertion errors,
+#' and then evaluates the modified expression. If any assertion fails, the error messages are collected and logged using the
+#' `.logg` function at the error level.
+#'
+#' @return The function does not return a value. It stops execution and logs an error if any assertion fails.
 .loggAssert <- function(xpr) {
-   .impTopEnv()
-   .collAssert = makeAssertCollection()
+   impTopEnv()
+   .collAssert = checkmate::makeAssertCollection()
    xpr <- deparse(substitute(xpr)) %>% gsub(" ", "", .) %>% paste(., collapse = "")
    xpr <- paste0(substr(xpr, 1, nchar(xpr)-1), ",add=.collAssert)")
    eval(parse(text = xpr))
@@ -298,7 +636,25 @@ read.file <- function(file, sheet = 1) {
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## convert factor columns to character columns in data.table
+#' Convert Factor Columns to Character Columns in a Data Table
+#'
+#' Converts all factor columns in a data.table to character columns.
+#'
+#' @param dt A `data.table` object in which factor columns need to be converted to character columns.
+#'
+#' @details
+#' The function identifies all columns in the `data.table` that are of type factor and converts them to character columns.
+#' If no factor columns are present, the original `data.table` is returned unchanged.
+#'
+#' @return A `data.table` object with factor columns converted to character columns.
+#'
+#' @examples
+#' library(data.table)
+#' dt <- data.table(a = factor(c("x", "y", "z")), b = 1:3)
+#' dt <- fact2char(dt)
+#' str(dt) # 'a' column is now character
+#'
+#' @export
 fact2char <- function(dt) {
   changeCols <- c(names(Filter(is.factor, dt)))
   if (length(changeCols) > 0) {
@@ -315,7 +671,6 @@ fact2char <- function(dt) {
 #'
 #' Converts data.frame or data.table columns of class character to factor.
 #'
-#' @import data.table
 #' @param dt Input data of class data.table or data.frame.
 #' @return The input data \code{dt} with columns of class character converted to factor.
 #' @seealso \code{\link{int2fact}}
@@ -325,6 +680,7 @@ fact2char <- function(dt) {
 #' sapply(DT, class)
 #' MSqb2::char2fact(DT)
 #' sapply(DT, class)
+#' @export
 char2fact <- function(dt) {
   if (!any(class(dt) %in% c("data.table", "data.frame"))) {
     stop("Input must be of class data.table or data.frame.")
@@ -340,7 +696,7 @@ char2fact <- function(dt) {
   if (length(changeCols) > 0) {
     dt[, (changeCols) := lapply(.SD, \(x) {
       is.na(x) <- x %in% c("NA", "<NA>")
-      x <- factor(x, levels = unique(x)) 
+      x <- factor(x, levels = unique(x))
     }), .SDcols = changeCols]
   }
 
@@ -350,7 +706,7 @@ char2fact <- function(dt) {
   # sort based on alphanumeric -> natural (lexicographic)
   dt[, (fc) := lapply(.SD, \(x) factor(x, levels = unique(x) %>% stringr::str_sort(., numeric = TRUE) )), .SDcols = fc]
 
-  
+
   if (setback2df) dt <- data.frame(dt, row.names = rn)
   return(dt)
 }
@@ -373,6 +729,7 @@ char2fact <- function(dt) {
 #' sapply(DT, class)
 #' int2fact(DT)
 #' sapply(DT, class)
+#' @export
 int2fact <- function(dt) {
   if (!any(class(dt) %in% c("data.table", "data.frame"))) {
     stop("Input must be of class data.table or data.frame.")
@@ -398,7 +755,24 @@ int2fact <- function(dt) {
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## match model formula with experimental design
+#' Match Model Formula with Metadata
+#'
+#' Checks whether all parameters used in a model formula match the column names in a given metadata design table. If any parameters do not match, the user is prompted to either stop the process and correct the issue or proceed by removing the missing parameters from the model formula.
+#'
+#' @param dsgn A data frame or data table containing the metadata design information.
+#' @param frm A character string representing the model formula to be matched with the metadata design.
+#'
+#' @details
+#' The function extracts all variables used in the model formula and compares them with the column names in the metadata design. If any variables are missing, a message is logged, and the user is prompted to choose whether to stop the process or remove the missing variables from the formula and continue. This function is useful in cases where the metadata design does not fully align with the model formula.
+#'
+#' @return The updated model formula as a character string, with any missing parameters removed if the user chooses to proceed.
+#'
+#' @examples
+#' dsgn <- data.frame(sampleID = 1:5, group = factor(c("A", "B", "A", "B", "A")))
+#' frm <- "~ group + batch"
+#' .match_ModelFormula_metadata(dsgn, frm)
+#'
+#' @import glue
 .match_ModelFormula_metadata <- function(dsgn, frm) {
    fit.para <- c(all.vars(as.formula(frm)))
    if (any(!fit.para %in% names(dsgn))) {
@@ -431,7 +805,28 @@ int2fact <- function(dt) {
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## import config parameters from file
+#' Read or Generate Configuration Parameters
+#'
+#' Reads configuration parameters from a provided file or generates them based on build parameters. Handles cases where both configuration parameters and a configuration file are provided, prompting the user to choose which to use. The function can work for both workflow and visualization configuration types.
+#'
+#' @param build.para A list containing build parameters. This is generated by the `msqb_build` function.
+#' @param config.para A list containing pre-existing configuration parameters (optional).
+#' @param config.file A character string specifying the path to a configuration file (optional).
+#' @param config.type A character string indicating the type of configuration: either `"wf"` for workflow or `"viz"` for visualization.
+#' @param ... Additional arguments passed to the configuration functions (`msqb_config` or `msqb_config_viz`).
+#'
+#' @details
+#' This function is designed to handle the reading and generation of configuration parameters based on the build parameters and the specified configuration type. If both `config.file` and `config.para` are provided, the user is prompted to choose which to use. If neither is provided, the function attempts to generate the configuration parameters using the specified configuration function.
+#'
+#' The function expands the configuration list and exports it to the top environment, making it available for further processing in the workflow.
+#'
+#' @return The function does not return a value directly. Instead, it modifies the environment by expanding and exporting the configuration parameters.
+#'
+#' @examples
+#' # Assuming `build.para` is already defined
+#' readConfigPara(build.para = build.para, config.file = "path/to/config.R", config.type = "wf")
+#'
+#' @export
 readConfigPara <- function(build.para, config.para, config.file, config.type, ...) {
    if (!exists("build.para", mode = "list")) {
       MSqb2:::.logg(FATAL, glue(
@@ -474,100 +869,39 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
    # remove junk
    suppressWarnings(rm(conf.para, conf.str, config.file, config.type, conf.res, config.para))
    # export all to top env.
-   .expTopEnv()
+   expTopEnv()
 }
 
 
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## Add BioRep if not already in the metadata
-.check.pheno <- function(pdt) {
-
-   ## --- paired design:
-   ## Paired samples occur when we compare two treatments and each sample given one treatment
-   ## is naturally paired with a particular sample given the other treatment.
-   ## (paired samples with blocks of size 2, 3, ...)
-
-   ## --- factorial design
-   ## Factorial designs are those where more than one experimental dimension is being varied
-   ## and each combination of treatment conditions is observed.
-   ## -> here make a new condition column by combining (pasting) the dimensions together.
-
-   ## limma 9.7 Multi-level Experiments
-   ## the case with duplicateCorrelation
-
-
-   if (!"BioRep" %in% names(pdt)) { # if no BioRep in data
-      if (!"SampleID" %in% names(pdt)) { # if no BioRep AND sampleID in data
-         MSqb2:::.logg(WARN, glue("There are no 'SampleID' and 'BioRep' columns in the metadata. ",
-                          "By default, each raw will be considered as a biological replicate."))
-         pdt[, SampleID := sprintf("sample.%0*s", floor(log10(max(.I)))+1, .I) ]
-      } else {
-         MSqb2:::.logg(WARN, glue("There is no 'BioRep' column in the metadata. ",
-                          "By default, each sample will be considered as a biological replicate."))
-      }
-      pdt[, BioRep := sprintf("BioRep.%0*s", floor(log10(max(.I)))+1, .GRP), by = SampleID]
-   }
-
-
-
-
-
-
-
-
-   if (any(pdt[, .(ConditionLvls = uniqueN(Condition)), by = SampleID][, 2] > 1)) {
-
-      MSqb2:::.logg(INFO, glue(
-         "Multiple condition levels found for the same samples. A 'repeated measures' ",
-         "design will be considered for the statistical analysis." ))
-
-      SmplConds <- pdt[, .(ConditionLvls = toString(Condition)), by = SampleID]
-      print(SmplConds)
-      # also add to log file
-      sink(log_file, append = TRUE)
-      print(SmplConds)
-      sink()
-
-      repeated.measures <- TRUE
-      blocking.para <- "SampleID"
-   }
-
-
-
-
-   if (!"BioRep" %in% names(pdt) & !"TechRep" %in% names(pdt)) {
-      MSqb2:::.logg(WARN, glue("There are no 'BioRep' and 'TechRep' columns in the metadata. ",
-                       "By default, each sample will be considered as a biological replicate."))
-      pdt[, BioRep := paste0("BioRep", seq_len(.N)), by = Condition]
-   }
-
-   if (!"BioRep" %in% names(pdt) & "TechRep" %in% names(pdt)) {
-      MSqb2:::.logg(WARN, glue("There is no 'BioRep' column in the metadata. ",
-                       "By default, 'BioRep' column will be created by sequencing along ",
-                       "'Condition' levels grouped by 'TechRep' levels."))
-      pdt[, BioRep := paste0("BioRep", seq_len(.N)), by = Condition]
-      pdt[, BioRep := paste0("TechRep", seq_along(Condition)), by = "TechRep"]
-   }
-
-   MSqb2:::.logg(INFO, glue("metadata:\n"))
-   print(pdt)
-   # also add to log file
-   sink(log_file, append = TRUE)
-   print(pdt)
-   sink()
-
-   return(invisible(pdt))
-}
-
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-## wide to long format & matrix to long
+#' Convert Wide Data to Long Format
+#'
+#' Converts a wide-format data table or matrix into long format, where specific columns represent row and column properties. The function also allows splitting identifiers based on a separator and reshapes the data accordingly.
+#'
+#' @param dw A `data.table` or `matrix` in wide format to be converted.
+#' @param val A character string specifying the name of the value column in the output.
+#' @param col.p A character vector specifying the column names in the output.
+#' @param row.p A character vector specifying the column names in the output.
+#' @param sp A character string used as a separator to split the identifiers for row and column properties. Defaults to `"&.&.&"`.
+#'
+#' @details
+#' This function reshapes wide-format data (such as a matrix) into long format, splitting row and column properties based on a specified separator. It is useful for preparing data for downstream analysis, where each unique combination of row and column properties is represented as a separate row in the output.
+#'
+#' The function handles both matrices and `data.table` objects, allowing for flexibility in input types. Row and column properties are split based on the specified separator and are expanded into new columns.
+#'
+#' @return A `data.table` in long format with the specified row and column properties, and a value column.
+#'
+#' @examples
+#' # Example with a matrix input
+#' matrix_data <- matrix(1:9, nrow = 3, dimnames = list(c("A&.&.&1", "B&.&.&2", "C&.&.&3"), c("X&.&.&1", "Y&.&.&2", "Z&.&.&3")))
+#' .w2l(matrix_data, val = "Value", col.p = "Group", row.p = "Category")
+#'
+#' @import data.table
+#' @export
 .w2l <- function(dw,
-                 val = "Abundance",
+                 val,
                  col.p,
                  row.p,
                  sp = "&.&.&") {
@@ -593,11 +927,43 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## long to wide format & long to matrix
+#' Convert Long Data to Wide Format
+#'
+#' Converts a long-format `data.table` into a wide-format data table or matrix, where specific columns represent row and column properties. The function also allows combining multiple identifiers using a specified separator.
+#'
+#' @param dl A `data.table` in long format to be converted.
+#' @param col.p A character vector specifying the column properties to be used in the wide format.
+#' @param row.p A character vector specifying the row properties to be used in the wide format.
+#' @param val A character string specifying the name of the value column in the input.
+#' @param sp A character string used as a separator to combine multiple identifiers for row and column properties. Defaults to `"&.&.&"`.
+#' @param asMat Logical; if `TRUE`, returns the result as a matrix. Defaults to `FALSE`.
+#' @param Mat.rownm A character vector specifying the columns to be used as row names in the matrix output.
+#' @param ... Additional arguments passed to `dcast.data.table`, such as `fun.aggregate`.
+#'
+#' @details
+#' This function reshapes long-format data into wide format, combining row and column properties using the specified separator. It is useful for preparing data for downstream analysis, where each unique combination of row and column properties is represented as a separate column.
+#'
+#' The function handles both `data.table` objects and allows the output to be returned as either a `data.table` or a matrix. If a matrix is returned, optional row names can be specified.
+#'
+#' @return A wide-format `data.table` or matrix.
+#'
+#' @examples
+#' # Example with a data.table input
+#' library(data.table)
+#' long_data <- data.table(Category = rep(c("A", "B", "C"), each = 3),
+#'                         Group = rep(c("X", "Y", "Z"), 3),
+#'                         Abundance = 1:9)
+#' wide_data <- .l2w(long_data, col.p = "Group", row.p = "Category")
+#'
+#' # Example returning a matrix
+#' wide_matrix <- .l2w(long_data, col.p = "Group", row.p = "Category", asMat = TRUE, Mat.rownm = "Category")
+#'
+#' @import data.table
+#' @export
 .l2w <- function(dl,
                  col.p,
                  row.p,
-                 val = "Abundance",
+                 val,
                  sp = "&.&.&",
                  asMat = FALSE,
                  Mat.rownm = NULL, ...) { # ... for fun.aggregate
@@ -632,10 +998,47 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## !!! FOLLOWING SYMBOLS ARE NOT ALLOWED IN COLUMN NAMES AND INSIDE THE COLUMNS.
-##     This is to avoid any confusion with the symbols used in the design formula.
+#' Clean and Standardize Data Column Names and Values
+#'
+#' This function cleans and standardizes the column names and optionally the data within a `data.table` or vector by replacing or removing symbols that may interfere with design formulas. It is particularly useful in preprocessing data for statistical analysis where certain characters in column names or data values can cause issues.
+#'
+#' @param dt A `data.table` or vector containing the data to be cleaned.
+#' @param complete.check Logical; if `TRUE`, the function will also clean the content within the columns of the `data.table`. Defaults to `FALSE`.
+#' @param subsymDT A `data.table` specifying the symbols to be replaced or removed. It should contain two columns: `"symout"` (the symbol to be replaced) and `"symin"` (the replacement). Defaults to a table with common problematic symbols.
+#'
+#' @details
+#' The function ensures that certain symbols commonly used in design formulas (e.g., `~`, `+`, `:`, `|`, `-`, `(`, `)`, `/`, and spaces) are either removed or replaced in column names and, if `complete.check = TRUE`, within the data itself. This avoids potential conflicts when working with formulas in statistical models.
+#'
+#' The default `subsymDT` table maps symbols to replacements:
+#' \itemize{
+#'   \item `"~"` -> `""`
+#'   \item `"+"` -> `"."`
+#'   \item `":"` -> `""`
+#'   \item `"|"` -> `""`
+#'   \item `"-"` -> `"_"`
+#'   \item `"("` -> `"._"`
+#'   \item `")"` -> `"_."`
+#'   \item `"/"` -> `"."`
+#'   \item `" "` -> `""`
+#' }
+#'
+#' @return A list with two elements:
+#' \itemize{
+#'   \item `"cln.nm.dt"`: The cleaned `data.table` or vector.
+#'   \item `"ref.name.tbl"`: A reference table showing the original and cleaned column names (if `dt` is a `data.table`).
+#' }
+#'
+#' @examples
+#' library(data.table)
+#' dt <- data.table(`Column (1)` = c(1, 2), `Another+Column` = c(3, 4))
+#' result <- cleanDataPara(dt)
+#' cleaned_data <- result$cln.nm.dt
+#' reference_table <- result$ref.name.tbl
+#'
+#' @import limma
+#' @export
 
-cleanDataPara <- function(ddt, complete.check = FALSE, # export2env = FALSE
+cleanDataPara <- function(dt, complete.check = FALSE, # export2env = FALSE
                            subsymDT = data.table(
                              symout = c("\\~", "\\+", "\\:", "\\|", "\\-", "\\(", "\\)", "\\/", " "),
                              symin = c("", ".", "", "", "_", "", "", ".", "")
@@ -658,48 +1061,37 @@ cleanDataPara <- function(ddt, complete.check = FALSE, # export2env = FALSE
 
 
 
-  if (is.data.table(ddt)) {
-    nmDT <- data.table(original.names = names(ddt)) # old names with punctuations
+  if (is.data.table(dt)) {
+    nmDT <- data.table(original.names = names(dt)) # old names with punctuations
     for (is in seq(nrow(subsymDT))) {
-      names(ddt) <- gsub(subsymDT$symout[is], subsymDT$symin[is], names(ddt))
+      names(dt) <- gsub(subsymDT$symout[is], subsymDT$symin[is], names(dt))
     }
-    names(ddt) <- make.names(names(ddt))
-    names(ddt) <- sapply(names(ddt), function(x) {
-      strsplit2(x, "\\.") %>%
+    names(dt) <- make.names(names(dt))
+    names(dt) <- sapply(names(dt), function(x) {
+      limma::strsplit2(x, "\\.") %>%
         .[nchar(.) > 0] %>%
         paste(., collapse = ".")
     })
-    nmDT[, new.names := names(ddt)] # new names with punctuations
+    nmDT[, new.names := names(dt)] # new names with punctuations
 
     if (complete.check) {
       for (is in seq(nrow(subsymDT))) {
         for (para in nmDT$new.names) {
-          ddt[, (para) := lapply(.SD, function(x) gsub(subsymDT$symout[is], subsymDT$symin[is], x, perl = TRUE)), .SDcols = para]
+          dt[, (para) := lapply(.SD, function(x) gsub(subsymDT$symout[is], subsymDT$symin[is], x, perl = TRUE)), .SDcols = para]
         }
       }
     }
 
-    # message("\n\nSpecial charachters in the column names of 'Annotation.dt' were substituted according to 'subsymDT' table.")
-    # print(subsymDT[, .(symout, symin)])
-    # message("!!! Parameters used in design formula for test statistics must match the new names.")
-    # message("Check the original and new names in the table below.")
-    # print(nmDT)
-
-    # if (export2env) {
-    #   list2env(list("subsymDT" = subsymDT,
-    #                 "ref.name.tbl" = nmDT),
-    #          envir = .GlobalEnv)
-    # }
   }
 
-  if (is.vector(ddt)) {
+  if (is.vector(dt)) {
     for (is in seq(nrow(subsymDT))) {
-      ddt <- gsub(subsymDT$symout[is], subsymDT$symin[is], ddt)
+      dt <- gsub(subsymDT$symout[is], subsymDT$symin[is], dt)
       nmDT <- NULL
     }
   }
 
-  dout <- list("cln.nm.dt" = ddt, "ref.name.tbl" = nmDT)
+  dout <- list("cln.nm.dt" = dt, "ref.name.tbl" = nmDT)
 
   return(dout)
 }
@@ -707,353 +1099,38 @@ cleanDataPara <- function(ddt, complete.check = FALSE, # export2env = FALSE
 
 
 
-
 # %%%%%%%%%%%%%%%%%%%%%%%%
-## check color palettes, install if needed
-
-# test: plts <- list(Condition = 'Set1', BioRep = 'Darjeeling2', sd = "Heat", hh = "npg")
-.check.palettes <- function(plts, return.pkg = FALSE) {
-
-  if (is.list(plts)) plts %<>% unlist(.)
-
-  plt.l <- list(
-    RColorBrewer = c('BrBG', 'PiYG', 'PRGn', 'PuOr', 'RdBu', 'RdGy', 'RdYlBu', 'RdYlGn',
-                     'Spectral', 'Accent', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', 'Set1',
-                     'Set2', 'Set3', 'Blues', 'BuGn', 'BuPu', 'GnBu', 'Greens', 'Greys',
-                     'Oranges', 'OrRd', 'PuBu', 'PuBuGn', 'PuRd', 'Purples', 'RdPu', 'Reds',
-                     'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd'),
-
-    viridis = c('cividis', 'inferno', 'magma', 'mako', 'plasma', 
-                'rocket', 'turbo', 'unemp', 'viridis'),
-
-    wesanderson = c('BottleRocket1', 'BottleRocket2', 'Rushmore1', 'Rushmore', 'Royal1',
-                    'Royal2', 'Zissou1', 'Darjeeling1', 'Darjeeling2', 'Chevalier1',
-                    'FantasticFox1', 'Moonrise1', 'IsleofDogs2', 'Moonrise2', 'Moonrise3',
-                    'Cavalcanti1', 'GrandBudapest1', 'GrandBudapest2', 'IsleofDogs1'),
-
-    ggpubr = c('npg', 'aaas', 'nejm', 'lancet', 'jama', 'jco', 'ucscgb', 'd3', 'locuszoom',
-               'igv', 'uchicago', 'startrek', 'tron', 'futurama', 'rickandmorty', 'simpsons'),
-
-    grDevices = c('Pastel 1', 'Dark 2', 'Dark 3', 'Set 2', 'Set 3', 'Warm', 'Cold', 'Harmonic',
-                  'Dynamic', 'Grays', 'Light Grays', 'Blues 2', 'Blues 3', 'Purples 2',
-                  'Purples 3', 'Reds 2', 'Reds 3', 'Greens 2', 'Greens 3', 'Oslo', 'Purple-Blue',
-                  'Red-Purple', 'Red-Blue', 'Purple-Orange', 'Purple-Yellow', 'Blue-Yellow',
-                  'Green-Yellow', 'Red-Yellow', 'Heat', 'Heat 2', 'Terrain', 'Terrain 2',
-                  'Viridis', 'Plasma', 'Inferno', 'Rocket', 'Mako', 'Dark Mint', 'Mint',
-                  'BluGrn', 'Teal', 'TealGrn', 'Emrld', 'BluYl', 'ag_GrnYl', 'Peach', 'PinkYl',
-                  'Burg', 'BurgYl', 'RedOr', 'OrYel', 'Purp', 'PurpOr', 'Sunset', 'Magenta',
-                  'SunsetDark', 'ag_Sunset', 'BrwnYl', 'YlOrRd', 'YlOrBr', 'OrRd', 'Oranges',
-                  'YlGn', 'YlGnBu', 'Reds', 'RdPu', 'PuRd', 'Purples', 'PuBuGn', 'PuBu', 'Greens',
-                  'BuGn', 'GnBu', 'BuPu', 'Blues', 'Lajolla', 'Turku', 'Hawaii', 'Batlow',
-                  'Blue-Red', 'Blue-Red 2', 'Blue-Red 3', 'Red-Green', 'Purple-Green', 'Purple-Brown',
-                  'Green-Brown', 'Blue-Yellow 2', 'Blue-Yellow 3', 'Green-Orange', 'Cyan-Magenta',
-                  'Tropic', 'Broc', 'Cork', 'Vik', 'Berlin', 'Lisbon', 'Tofino', 'ArmyRose',
-                  'Earth', 'Fall', 'Geyser', 'TealRose', 'Temps', 'PuOr', 'RdBu', 'RdGy', 'PiYG',
-                  'PRGn', 'BrBG', 'RdYlBu', 'RdYlGn', 'Spectral', 'Zissou 1', 'Cividis', 'Rom')
-  )
-
-  reserved.plts <- c('Set1', 'Spectral', 'Accent', 'Dark2',
-                     'Paired','YlGnBu', 'RdYlBu', 'Set2', 'Set3')
-
-
-  # check which palettes are not allowed
-  if (any(!plts %in% unlist(plt.l))) {
-    MSqb2:::.logg(ERROR,
-                 glue("Color palette not allowed:\n",
-                      "{glue_collapse(setdiff(plts, plt.l), sep = '\n')}\n"))
-  }
-
-
-  # check which packeges needed to be loaded/installed
-  pltpkgs <- sapply(plts, \(x) grep(x, plt.l)[1] ) %>% plt.l[.] %>% names()
-  ipk <- which(!pltpkgs %in% rownames(installed.packages()))
-
-  # if ipk not empty, some packages are needed to be installed
-  if (length(ipk) != 0) {
-
-    instpkg <- pltpkgs[ipk]
-
-    if (interactive) {
-      MSqb2:::.logg(TRACE,
-                   glue("Following color palettes for visualization are from package ",
-                        "which are not installed:\n\n",
-                        "{glue_collapse(plts[ipk], sep = '\n')}\n\n",
-                        "required packages (respectively):\n\n",
-                        "{glue_collapse(instpkg, sep = '\n')}\n\n",
-                        "Do you want to install these packages?\n",
-                        "By selecting 'no', these palettes will be replaced by random color palettes. ",
-                        "Alternatively you can terminate the process and change the palettes."))
-
-      ans <- select.list(c("yes", "no"))
-
-      if (ans == "yes") {
-
-        install.packages(instpkg)
-        if (!all(instpkg %in% rownames(installed.packages()))) { # check again
-          library(BiocManager, quietly = TRUE)
-          BiocManager::install(instpkg)
-        }
-        sapply(instpkg, require, character.only = TRUE)
-        MSqb2:::.logg(SUCCESS, glue("Package(s) were successfully installed and loaded."))
-
-      } else {
-        plts[ipk] <- sample(setdiff(reserved.plts, plts[-ipk]), 2)
-      }
-    }
-  }
-
-  if (return.pkg) {
-    data.table(pkg = sapply(plts, \(x) grep(x, plt.l)[1] ) %>% plt.l[.] %>% names(),
-               plt = plts) %>%
-      return(.)
-  } else return(as.list(plts))
-
-}
-
-
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-## pick colors from palettes
-
-colorpicker <- function(plt, n, ...) {
-  oldw <- getOption("warn")
-  options(warn = -1)
-
-  # pltdt <- MSqb2:::.check.palettes(plt, return.pkg = TRUE)
-  pltdt <- .check.palettes(plt, return.pkg = TRUE)
-  plt <- pltdt[1, plt]
-  pkg <- pltdt[1, pkg]
-
-  if (pkg == "wesanderson") {
-
-    cols <- as.vector(wesanderson::wes_palette(n = n, name = plt, type = c("continuous")))
-
-  } else if (pkg == "ggpubr") {
-
-    cols <- ggpubr::get_palette(k = n, palette = plt)
-
-  } else if (pkg == "grDevices") {
-
-    cols <- grDevices::hcl.colors(n = n, palette = plt, ...)
-
-  } else if (pkg == "RColorBrewer") {
-
-    getPalette = colorRampPalette(RColorBrewer::brewer.pal(n, plt))
-    cols <- getPalette(n)
-    # cols <- RColorBrewer::brewer.pal(n = n, name = plt)
-    if (n < 3) cols <- cols[1:n]
-
-  } else if (pkg == "viridis") {
-
-    cols <- viridis::viridis_pal(option = tolower(plt))(n)
-
-  }
-  options(warn = oldw)
-
-  return(cols)
-}
-
-
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-## display global colors
-.displayGlobalColors <- function(col.list, silent = FALSE, save.plot = FALSE, path = getwd()) {
-  cols <- suppressWarnings(as.data.table(col.list))
-  nms <- suppressWarnings(as.data.table(lapply(col.list, names)))
-  .col2l <- function(d, ...) {
-    return(d[, id := seq(nrow(d))] %>%
-             melt.data.table(., id.vars = "id", ...) %>% .[, -"id"] %>% unique(.))
-  }
-
-  global.colors <-
-    cbind(
-      .col2l(cols, value.name = "cl"),
-      .col2l(nms, value.name = "pr")[, -"variable"]
-    ) %>%
-    .[, y := seq_along(cl), by = variable] %>%
-    ggplot(., aes(x = variable, y = y, col = cl, fill = cl, label = pr)) +
-    geom_tile() +
-    facet_wrap(. ~ variable, scales = "free") +
-    geom_text(col = "black") +
-    scale_color_identity() +
-    scale_fill_identity() +
-    theme_void()
-
-  if (save.plot) {
-    png(filename = file.path(path, "global_colors_scheme.png"))
-    print(global.colors)
-    dev.off()
-  }
-  if (!silent) {
-    return(global.colors)
-  }
-}
-
-
-
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-## define facet formula for qc plots
-.FacetFormula <- function(fct) {
-  if (!is.list(fct)) stop("Input must be of class list, with 2 elements: 'rows' and 'cols'!")
-  if (length(fct) > 2) stop("Input must be of class list, with 2 elements: 'rows' and 'cols'!")
-  if (any(is.na(match(names(fct), c("rows", "cols"))))) {
-    stop("Invalid element names! The name of the elements in the input list must be 'rows' and 'cols'")
-  }
-
-  elm <- setdiff(c("rows", "cols"), names(fct))
-  if (length(elm) > 0) fct[[elm]] <- "."
-
-  return(formula(paste(
-    paste(fct$rows, collapse = "+"),
-    paste(fct$cols, collapse = "+"),
-    sep = "~"
-  )))
-}
-
-
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-## if feature.annotation.source is psm.file, call annotations from description column
-.psmDescGenes <- function(x) {
-  xx <- strsplit(x, "GN=")
-  unlist(xx) %>% .[-1] %>% 
-    sapply(., \(y) tstrsplit(y, " PE=", keep = 1)) %>% 
-    unlist() %>% 
-    paste(., collapse = ";")
-}
-
-
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-## order data.table with alphanumeric columns
-## idea from: https://stackoverflow.com/questions/49084625/sort-strings-by-numbers-inside-them
+#' Order a `data.table` by Alphanumeric Column
+#'
+#' This function orders a `data.table` based on alphanumeric sorting of a specified column. The sorting is done by extracting numeric components from the column values while preserving the overall alphanumeric order. It is particularly useful for cases where numeric sequences are embedded within text.
+#'
+#' @param dt A `data.table` containing the data to be ordered.
+#' @param x A string specifying the column name to be ordered. The column can be either character or factor type.
+#'
+#' @details
+#' The function extracts numeric values from the specified column and orders the `data.table` based on these numbers. It handles mixed alphanumeric values by focusing on the numeric part while maintaining the overall alphanumeric order. If the column is a factor, the levels are also updated to reflect the new order.
+#'
+#' The underlying idea is based on a solution from [Stack Overflow](https://stackoverflow.com/questions/49084625/sort-strings-by-numbers-inside-them).
+#'
+#' @return The input `data.table` ordered by the specified column.
+#'
+#' @examples
+#' library(data.table)
+#' dt <- data.table(id = c("item1", "item10", "item2", "item20"))
+#' ordered_dt <- order.num(dt, "id")
+#' print(ordered_dt)
+#'
+#' @export
 order.num <- function(dt, x) {
   xo <- dt[, ..x] %>% unlist()
   fct <- ifelse(is.factor(xo), TRUE, FALSE)
   if (fct) xo %>% unique() %>% as.character()
   ix <- xo %>% gsub("[^[:digit:]]", "", .) %>% as.numeric() %>% order() %>% xo[.]
-  dt <- dt[order(match(get(x), ix))] 
+  dt <- dt[order(match(get(x), ix))]
   if (fct) dt[, (x) := factor(get(x), levels = ix)]
   return(dt)
 }
 
-
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-## merge multi column data with lookup table
-lookupSplit <- function(dpg, ref, input, output) {
-  setkeyv(ref, cols = input)
-
-  dpg[, rn := seq(nrow(dpg))] %>%
-    # wide to long
-    melt(., id.vars = "rn", variable.name = "inputGroup", value.name = input) %>%
-    .[!is.na(get(input))] %>%
-    # Set key for the join
-    setkeyv(., input) %>%
-    ref[.] %>%
-    # wide to long
-    dcast(., rn ~ inputGroup, value.var = output) %>%
-    .[, rn := NULL] %>%
-    return(.)
-}
-
-
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-#' Subsets Top proteins/genes Based on Variance
-#'
-#' This function subsets the input data table based on the highest row-wise variance.
-#' It can return either a specific number of top rows (`topN`) or a percentage
-#' (`topNperc`) of the rows with the highest variance. Additional options allow
-#' control over the minimum number of rows returned and the format of the output.
-#' The combination of `row.p`, `col.p` and `val` will be used to reformat data via
-#' function `dcast` from `data.table` package.
-#'
-#' @param dt Data table to be processed.
-#' @param row.p Column name in `dt` representing the rows.
-#' @param col.p Column name in `dt` representing the columns.
-#' @param val Column name in `dt` representing the values.
-#' @param topNperc Percentage of top variant rows to return. When specified, `topN` is ignored.
-#' @param min500 Logical; if TRUE, a minimum of 500 rows are returned.
-#' @param topN Integer; the number of top variant rows to return. When specified, `topNperc` is ignored.
-#' @param complete.rows Logical; if TRUE, rows with missing values are omitted.
-#' @param sep.col String; separator used in the matrix conversion.
-#' @param returnLongFormat Logical; if TRUE, returns the data in long format.
-#' @return A subset of `dt` with the top variable rows based on variance.
-#' @examples
-#' # Example usage of subTopVar function
-#' data(iris)
-#' dt <- as.data.table(iris)
-#' topVarData <- subTopVar(dt, "Species", "Sepal.Length", "Sepal.Width",
-#'                         topNperc = 20, complete.rows = TRUE,
-#'                         returnLongFormat = FALSE)
-#' head(topVarData)
-#'
-#' @export
-subTopVar <- function(dt, row.p, col.p, val, topNperc,
-                     min500 = TRUE, topN = NULL,
-                     complete.rows, sep.col = "&.&.&",
-                     returnLongFormat = FALSE) {
-  # priority given to topN
-  if (!is.null(topN)) topNperc <- NULL
-
-  datw <- MSqb2:::.l2w(
-    dl = dt[, c(..row.p, ..col.p, ..val)],
-    col.p = c(col.p),
-    row.p = row.p,
-    val = val,
-    sp = sep.col,
-    # fun.agg = median,
-    asMat = TRUE,
-    Mat.rownm = row.p
-  )
-
-  # no missingness
-  if (complete.rows) datw <- na.omit(datw)
-
-  # calculate variance
-  var.ordered <- apply(datw, 1, function(x) var(x, na.rm = TRUE)) %>%
-    sort(., decreasing = TRUE)
-
-  # take top "n" or top "Percent"
-  if (!is.null(topNperc)) {
-    # take top n% most variant, if this is less than 200 take 200, if data is smaller take everything!
-    topN <- round(nrow(datw) * topNperc / 100) %>%
-      max(., 200) %>%
-      min(., nrow(datw))
-    if (min500) {
-      topN <- ifelse(topN < 500, 500, topN)
-    }
-  }
-  var.ordered <- names(var.ordered[1:topN])
-
-  # subset topN
-  datw <- datw[which(rownames(datw) %in% var.ordered), ]
-
-  MSqb2:::.logg(level = INFO,
-               glue("Top {topN} variables with highest variance were used for PCA."))
-  
-  if (returnLongFormat) {
-    return(dt[get(row.p) %in% var.ordered])
-  } else {
-    return(datw)
-  }
-}
 
 
 
