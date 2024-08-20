@@ -1,0 +1,39 @@
+Package: MSqb2
+Type: Package
+Title: Differential expression analysis of MS-based Proteomics data
+Version: 0.1.1
+Authors@R: person("Farhad", "Shakeri", 
+                    role = c("aut", "cre"),
+                    email = "farhad.shakeri@uni-bonn.de")
+Maintainer: Farhad Shakeri <farhad.shakeri@uni-bonn.de>
+Description: MSqb is an R package for differential expression analysis of mass spectrometry-based proteomics data. It provides a comprehensive pipeline that handles key preprocessing steps, including normalization, batch effect correction, missing value imputation, and data filtering. The statistical analysis is powered by the limma framework, enabling robust identification of differentially expressed proteins across conditions.
+Encoding: UTF-8
+BuildVignettes: TRUE
+VignetteBuilder: knitr
+Depends:
+    R (>= 4.1),
+    data.table (>= 1.14),
+    limma,
+    vsn,
+    magrittr,
+    readxl,
+    openxlsx,
+    logger,
+    checkmate,
+    glue,
+    pbapply
+Imports:
+    UniProt.ws,
+    imputeLCMD, 
+    preprocessCore,
+    methods
+Suggests: 
+    knitr,
+    roxygen2,
+    testthat
+biocViews: 
+    MassSpectrometry, 
+    Proteomics
+License: Artistic-2.0
+RoxygenNote: 7.3.2
+Roxygen: list(markdown = TRUE)

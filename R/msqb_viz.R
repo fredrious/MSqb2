@@ -1,0 +1,820 @@
+
+
+#' Title
+#'
+#' @param msqb_res
+#' @param config.para.viz
+#' @param config.viz.file
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' RColorBrewer
+msqb_viz <- function(msqb_res,
+                     config.para.viz = NULL,
+                     config.viz.file = NULL,
+
+                     QC = TRUE,
+                     FitResidual = TRUE,
+                     PCA = TRUE,
+                     Volcano = TRUE,
+                     Heatmaps = TRUE,
+                     ProfilePlots = TRUE,
+                     Venndiagram = TRUE,
+                     LFCbars = FALSE,
+                     ...) {
+
+
+  ## .................................
+  ## i) import config viz parameters ----
+  ## import config viz parameters to msqb_viz environment.
+  ## (either from config.viz.file, config.para.viz, config.para or ellipsis!)
+  config.para.viz <- readConfigPara(
+    build.para = msqb_res$build.para,
+    config.para = config.para.viz,
+    config.file = config.viz.file,
+    config.type = "viz",
+    ...
+  )
+
+  list2env(
+    mget(names(config.para.viz),
+    envir = as.environment(config.para.viz)),
+    envir = environment()
+  )
+
+
+
+  # ##.................................
+  # ## ii) import config parameters ----
+  # ## import config parameters to msqb_viz environment.
+  # list2env(mget(names(msqb_res$config.para),
+  #               envir = as.environment(msqb_res$config.para)),
+  #          envir = environment())
+  #
+  #
+  #
+  # ##.................................
+  # ## iii) import config parameters ----
+  # ## import build parameters to msqb_viz environment.
+  # list2env(mget(names(msqb_res$build.para),
+  #               envir = as.environment(msqb_res$build.para)),
+  #          envir = environment())
+  #
+
+  ## .................................
+  ## iv) import everything else from msqb_res environment ----
+  list2env(mget(ls(name = msqb_res), envir = msqb_res), envir = environment())
+  rm("msqb_res", "build.para", "config.para", pos = environment()) ## msqb_res not needed anymore.
+
+
+  ## .................................
+  ## v) make new env. to store results and parameters----
+  vis.env <- new.env(parent = .GlobalEnv)
+
+
+
+  ## vi) define global colors ----
+  global.colors <- setColors(dt = metadata, manual.color.palette = manual.color.palette)
+  MSqb2:::.displayGlobalColors(global.colors, silent = TRUE, save.plot = TRUE, path = QCplots.path)
+  list2env(list("global.colors" = global.colors), envir = .GlobalEnv)
+
+
+  # FractionQC.w <- FractionQC.h <- "auto"
+  # Dist.w <- Dist.h <- "auto"
+
+
+
+
+  if (QC) {
+
+  MSqb2:::.logg("info", "generating plot ... basic statistics \n")
+
+  ## 1.  plot basic stats ----
+  if (exists("BasicStats") && !is.null(BasicStats)) {
+    vis.env$BasicStats_plot <-
+      plot_BasicStats(BasicStats,
+        filename = "basicStats_counts",
+        suffix = suffix,
+        save.format = save.format,
+        path = QCplots.path
+      )
+  }
+
+
+
+
+  ## 2.   pie diagram ... count accession codes ----
+  ## count number of protein accession codes in Master.Protein.Accessions (per row)
+  MSqb2:::.logg("info", "generating plot ... Accessions per Protein \n")
+
+  vis.env$AccessionCount_plot <-
+    plot_AccessionCount(FeatureDT.cleaned,
+      filename = "AccessionCount_perProtein",
+      suffix = suffix,
+      save.format = save.format,
+      path = QCplots.path
+    )
+
+
+
+  ## 3. plot isolation interference ----
+  MSqb2:::.logg("info", "generating plot ... Isollation interference \n")
+
+  vis.env$IsolationInterference_plot <-
+    plot_IsolationInterference(
+      dat = Isol.Interference$Interference,
+      Isolation.cut = Isol.Interference$cutoff,
+      save.plot = TRUE,
+      save.format = save.format,
+      filename = "IsolationInterference",
+      suffix = suffix,
+      width = 7,
+      height = 4,
+      path = QCplots.path
+    )
+
+
+
+  ## 4. QC check Intensity distribution  ----
+  plotDist.series <- function(dt, what, fln) {
+    plotDist(
+      dt = dt,
+      int = what,
+      para = "auto",
+      fill.alpha = 0.6,
+      facet.by = "auto", # list(rows = "Pool", cols = "Condition"),
+      fc.scale = "free_x",
+      legend.pos = "top",
+      add.label = TRUE,
+      log2 = TRUE,
+      facet.scale.factor = BoxDistPlot.mag, ## if either of width or height is "auto"
+      width = "auto",
+      height = "auto",
+      filename = fln,
+      suffix = suffix,
+      save.plot = TRUE,
+      save.format = save.format,
+      path = file.path(QCplots.path, "Density_n_Boxplots")
+    )
+  }
+
+
+  genHM_denc.series <- function(dt, what, fln, logt) {
+    genHM_denc(dt = dt,
+               val = what,
+               row.p = "Feature",
+               col.p = "Filename",
+               bar.p = unique(c(names(metadata), "Fraction")),
+               log.trans = logt,
+               bar.palettes = "auto",
+               hm.palette = "Spectral",
+               fill.box.by = "Condition",
+               sp = "",
+               techrep = "TechRep",
+               box.outline = FALSE,
+               box.height = unit(4, "cm"),
+               heatmap_legend_side = "right",
+               annotation_legend_side = "right",
+               column_title = "Density heatmap per pool, channel and fraction",
+               filename = paste0("HMdensity_", fln),
+               save.plot = TRUE,
+               suffix = NULL,
+               save.format = "png",
+               hm.path = file.path(QCplots.path, "Density_Heatmaps"),
+               width = 9, height = 6,
+               show_column_names = TRUE,
+               column_names_rot = 45,
+               column_names_fontsize = 8,
+               ...)
+  }
+
+
+  dts <- read.table(header = T, row.names = 1, text =
+        "dt                        what      logt     fln
+         FeatureDT.cleaned         Intensity TRUE     IntensityDist_BeforeNorm
+         PeptideDT.normalised      Abundance FALSE    IntensityDist_AfterNorm
+         PeptideDT.batchCorrected  Abundance FALSE    IntensityDist_AfterNorm_batchCorrected")
+
+  for (ids in rownames(dts)) {
+    if (exists(ids)) {
+      MSqb2:::.logg("info", glue("generating plot ... Intensity distribution \n{dts[ids, 'fln']} \n"))
+      vis.env[[glue("{dts[ids, 'fln']}")]] <- plotDist.series(
+        dt = get(ids), what = dts[ids, "what"], fln = dts[ids, "fln"] )
+
+      MSqb2:::.logg("info", glue("generating plot ... Intensity distribution heatmap \n{dts[ids, 'fln']} \n"))
+      vis.env[[glue("HM.{dts[ids, 'fln']}")]] <- genHM_denc.series(
+        dt = get(ids), what = dts[ids, "what"], fln = dts[ids, "fln"], logt = dts[ids, "logt"] )
+    }
+  }
+
+
+
+
+
+
+  ## 5. distribution of Features across fractions ----
+  MSqb2:::.logg("info", "generating plot ... PSM count per Pool \n")
+
+  if (exists("PSMsperFraction") && !is.null(PSMsperFraction)) { ## only for TMT
+    vis.env$FeaturePerFraction_plot <-
+      plot_FeaturePerFraction(PSMsperFraction,
+        save.plot = TRUE,
+        save.format = save.format,
+        filename = "FeaturePerFraction",
+        suffix = suffix,
+        pl.width = pl.width,
+        pl.height = pl.height,
+        path = QCplots.path
+      )
+  }
+
+
+
+
+
+  ## 6. check missingness ----
+  MSqb2:::.logg("info", "generating plot ... NA per Fraction \n")
+
+  if ("Fraction" %in% names(FeatureDT.cleaned)) {
+    vis.env$Missingness_perChnlnFrac_plot <-
+      plot_FractionNAcount(FeatureDT.cleaned,
+        save.plot = TRUE,
+        save.format = save.format,
+        filename = "Missingness_perChnlnFrac",
+        suffix = suffix,
+        pl.width = "auto",
+        pl.height = "auto",
+        path = QCplots.path
+      )
+  }
+
+
+
+  ## 8. Fraction QC before normalization ----
+  MSqb2:::.logg("info", "generating plot ... Fractions dis. BEFORE normaization \n")
+
+  if ("Fraction" %in% names(FeatureDT.cleaned)) {
+    vis.env$Fractions_DistityPlot <-
+      plot_FractionDensQC(FeatureDT.cleaned,
+        palette = "Paired",
+        pl.width = "auto",
+        pl.height = "auto",
+        filename = "IntensityDistribution_Fractions",
+        suffix = suffix,
+        save.format = save.format,
+        save.plot = TRUE,
+        path = QCplots.path
+      )
+  }
+
+
+
+  if (exists("MissingPerFracChnl") && !is.null(MissingPerFracChnl) &&
+      "Fraction" %in% names(FeatureDT.cleaned)) {
+    MSqb2:::.logg("info", "generating plot ... Missingness per Fraction \n")
+
+    ## 9. Protein and Peptide count per Fraction and Pool ----
+    # vis.env$ProtPeptCount_perFraction_plot <-
+    #   plot_PrtPepcount(MissingPerFracChnl,
+    #     PrtPepcount.palette = "jama",
+    #     legend.pos = "right",
+    #     facet.scale.factor = 2, ## if either of width or height is "auto"
+    #     width = "auto",
+    #     height = "auto",
+    #     save.plot = TRUE,
+    #     save.format = save.format,
+    #     filename = "ProtPeptCount_perFraction",
+    #     suffix = suffix,
+    #     path = QCplots.path
+    #   )
+
+
+    ## 10. NA count per Channel ----
+    MSqb2:::.logg("info", "generating plot ... Missingness per Channel \n")
+
+    vis.env$NAcount_perChannel_plot <-
+      plot_NAcount_perChannel(MissingPerFracChnl,
+        legend.pos = "right",
+        facet.scale.factor = 2, ## if either of width or height is "auto"
+        width = "auto",
+        height = "auto",
+        save.plot = TRUE,
+        save.format = save.format,
+        filename = "NAcount_perFraction",
+        suffix = suffix,
+        path = QCplots.path
+      )
+  }
+
+
+  ## 11. NA heatmap ----
+  MSqb2:::.logg("info", "generating plot ... Missingness heatmap \n")
+
+  vis.env$missingness_heatmap <-
+  genHM_NA(input = PeptideDT.normalised,
+                       value = "Abundance",
+                       variable = "Feature",
+                       Filename = intersect(c("Filename", "TechRep"), names(PeptideDT.normalised)),
+                       annotation.bar.para = setdiff(unique(c(names(metadata))), c("SampleID", "Filename")),
+                       annotation.bar.palettes = "auto",
+                       order.annotation.bar.by = "cluster",
+                       body.colors = c("grey", "darkred"),
+                       bar.height = unit(5, "cm"),
+                       heatmap_legend_side = "right",
+                       annotation_legend_side = "right",
+                       column_title = "Heatmap of missingness",
+                       filename = "missingness_heatmap",
+                       show_column_names = TRUE,
+                       column_names_rot = 90,
+                       column_names_fontsize = 8,
+                       # annot.bars.para = NULL,
+                       prefix = NULL,
+                       suffix = NULL,
+                       save.format = "png",
+                       hm.path = QCplots.path,
+                       width = 7,
+                       height = 9,
+                       save.plot = TRUE,
+                       show.plot = FALSE)
+
+}
+
+
+
+
+  if (FitResidual) {
+    MSqb2:::.logg("info", "generating plot ... Fit Residual diagnostics \n")
+
+  ## 12. Residual diagnostics ----
+  vis.env$residual_diagnostics <-
+    plot_residual(
+      fit_eb = fit_eb,
+      fit_residuals = fit_residuals,
+      variable = "Protein",
+      prefix = prefix,
+      suffix = suffix,
+      width = 8,
+      height = 8,
+      saveplot = TRUE,
+      save.format = save.format,
+      path = QCplots.path
+    )
+  }
+
+
+
+
+  if (PCA) {
+    ## 13.1 make PCA plots ----
+    pca.series <- function(dat, what, pth) {
+      plot_PCA(
+        dat = dat,
+        val = "Abundance",
+        row.p = what,
+        topN = NULL,
+        topNperc = pca.topNperc,
+        sep.col = "_._",
+        label = pca.label,
+        labelsize = pca.labelsize,
+        pca.dims = pca.dims,
+        complete.rows = TRUE,
+        repel = TRUE,
+        manual.color.palette = NULL,
+        legend.position = pca.legend.position,
+        suffix = suffix,
+        prefix = pth,
+        width = pca.width,
+        height = pca.height,
+        saveplot = TRUE,
+        plot.seperate = FALSE,
+        exclude.row.p = NULL,
+        preserve.aspect.ratio = TRUE,
+        save.format = "PDF",
+        plot.extra.PCA = TRUE,
+        path = file.path(PCA.path, pth)
+      )
+    }
+
+    dats <- read.table(header = T, row.names = 1, text =
+        "dat                       what    pth
+         PeptideDT.normalised      Feature Peptide_level
+         PeptideDT.batchCorrected  Feature Peptide_level_batchCorrected
+         ProteinDT                 Protein Protein_level
+         ProteinDT.batchCorrected  Protein Protein_level_batchCorrected")
+
+    for (idat in rownames(dats)) {
+      if (exists(idat)) {
+        MSqb2:::.logg("info", glue("generating plot ... PCA {dats[idat, 'pth']} \n"))
+        vis.env[[glue("pca.{dats[idat, 'pth']}")]] <- pca.series(
+          dat = get(idat), what = dats[idat, "what"], pth = dats[idat, "pth"] )
+      }
+    }
+  }
+
+
+
+
+
+
+  if (Volcano) {
+  #### 14. Volcanos ----
+    MSqb2:::.logg("info", "generating plot ... Volcanos \n")
+
+    volcano_list <-
+      plot_Volcano(
+        dtStat = topList,
+        comp = "Comparison",
+        adjpval = "adj.P.Val",
+        pval = "P.Value",
+        logfc = "logFC",
+        variable = "Protein",
+        topN = topN,
+        top.by = top.by,
+        label = label,
+        oob.xlim = oob.xlim,
+        oob.ylim = oob.ylim,
+        fdr.hlines = fdr.hlines,
+        fdr.cutoff = fdr.cutoff,
+        logfc.cutoff = logfc.cutoff,
+        shorten.volcano.name = shorten.volcano.name,
+        legend.position = legend.position,
+        repel.force = repel.force,
+        repel.label.size = repel.label.size,
+        repel.size = repel.size,
+        plotFDRcutLine = FALSE,
+        facet.text.size = facet.text.size,
+        colvec = c("Sig.Up.Reg" = "#ad2b0e",
+                   "Sig.Down.Reg" = "#215b99",
+                   "Sig.Up.UNReg" = "#d47b49",
+                   "Sig.Down.UNReg" = "#007FA5",
+                   "NonSig.Up.Reg" = "#453a38",
+                   "NonSig.Down.Reg" = "#32485c",
+                   "NonSig.Up.UNReg" = "#a99894",
+                   "NonSig.Down.UNReg" = "#8696a6"),
+        col.plt = col.plt,
+        x.ticks = x.ticks,
+        highlight = highlight,
+        hl.color = hl.color,
+        hl.shape = hl.shape,
+        hl.size = hl.size,
+        pval.sec.axis = pval.sec.axis,
+        hl.fontface = hl.fontface, # "plain", "bold", "italic", "bold.italic"
+        hl.force = hl.force,
+        hl.min.segment.length = hl.min.segment.length,
+        hl.label.size = hl.label.size,
+        interactivePlot = interactivePlot,
+        saveplot = TRUE,
+        volc.width = 7.5,
+        volc.height = 5.3,
+        path = Volcanos.path,
+        save.format = save.format
+      )
+  vis.env$VolcanoPlots_list <- volcano_list
+  rm(volcano_list)
+}
+
+
+
+
+  if (LFCbars) {
+    MSqb2:::.logg("info", "generating plot ... LogFoldChange across contrasts - all \n")
+
+  #### 15. lfc barplots ----
+  vis.env$TopProteinsComparison <-
+    lfc.barplot(topList,
+      topN = topN,
+      top.by = top.by,
+      fdr.cutoff = 0.05,
+      logfc.cutoff = 1,
+      highlight = highlight,
+      apval = "adj.P.Val",
+      pval = "P.Value",
+      comp = "Comparison",
+      variable = "Protein",
+      label = "Genes",
+      lfc = "logFC",
+      rank.id = "rank.id",
+      box.upper = "CI.R",
+      box.lower = "CI.L",
+      scale.high.col = "grey",
+      scale.mid.col = "grey",
+      scale.low.col = "firebrick3",
+      na.value.col = "grey",
+      scale.midpoint = 0.1,
+      scale.limits = c(0, 0.2),
+      scale.breaks = c(0.05, 0.1),
+      sig.lvl = 0.05,
+      gm.line.color = "black",
+      gm.line.linetype = "dotted",
+      gm.line.size = 0.5,
+      scale.fill.name = "FDR\n(measure of\nsignificance)",
+      scale.col.name = "Gene rank based\non significance",
+      rank.tag.loc = 0.2,
+      rank.tag.downReg.col = "darkred",
+      rank.tag.upReg.col = "deepskyblue4",
+      rank.tag.downReg.label = "down reg.",
+      rank.tag.upReg.label = "up reg.",
+      y.axis.ttl = "Log-Fold-Change\n(with 95% confidence intervals)",
+      x.axis.ttl = "Gene",
+      shorten.volcano.name = FALSE,
+      caption.face = "italic",
+      caption.hjust = 0,
+      caption.size = 9,
+      saveplot = TRUE,
+      width = lfc.width,
+      height = lfc.height,
+      path = Volcanos.path,
+      prefix = prefix,
+      suffix = suffix,
+      save.format = save.format,
+      filename = ""
+    )
+  }
+
+
+
+
+  if (Heatmaps) {
+
+    for (scl in scale.rows) {
+      ## all contrasts
+      if (scl) {
+        hm.path = file.path(TopSig_Heatmap.path, "ScaledRows")
+        main.legend.title = expression(~log[2](Intensity)-RowMeans)
+        bd.plt <- body.color.palette.scaled
+      } else {
+        hm.path = file.path(TopSig_Heatmap.path, "LogScale")
+        main.legend.title = expression(~log[2](Intensity))
+        bd.plt <- body.color.palette
+      }
+      if (!dir.exists(hm.path)) dir.create(hm.path, recursive = TRUE)
+
+
+
+  #### 16.1 Heatmap of most sig.  -all contrasts ----
+    MSqb2:::.logg("info", "generating plot ... global Heatmap \n")
+
+  require(purrr)
+  safe_genHM <- safely(genHM, otherwise = NA_real_)
+  org.cluster.rows <- cluster.rows
+  itr <- 0
+  if (exists("ProteinDT.batchCorrected")) {
+    hmdt <- ProteinDT.batchCorrected
+  } else {
+    hmdt <- ProteinDT}
+  repeat {
+    itr <- itr + 1
+    hmall <-
+      safe_genHM(
+        dt = hmdt,
+        topl = topList,
+        x.para = "Filename", #unique(c("Filename", "Condition", intersect(names(hmdt), names(metadata)))),
+        y.para = "Protein",
+        comp = "Comparison",
+        row.tag = row.tag,
+        Heatmap.type = "mostSig",
+        adj.p = "adj.P.Val",
+        meas = "Abundance",
+        hm.order.type = "each.first", # or "cycle"
+        topNhm = topNhm,
+        annot.bars.para = intersect(names(global.colors), names(hmdt)),
+        split.rows = NULL,
+        order.rows.by = order.rows.by,
+        scale.rows = scl,
+        cluster.rows = cluster.rows,
+        clustering_distance_rows = clustering_distance_rows,
+        clustering_method_rows = clustering_method_rows,
+        cluster.columns = TRUE,
+        clustering_distance_columns = clustering_distance_columns,
+        clustering_method_columns = clustering_method_columns,
+        body.color.palette = bd.plt,
+        heatmap_legend_side = heatmap_legend_side,
+        annotation_legend_side = annotation_legend_side,
+        HMname = HMname,
+        arrange.annot.bars.by.ref = arrange.annot.bars.by.ref,
+        main.legend.title = main.legend.title,
+        legend.height = unit(4, "cm"),
+        title.pos = "lefttop-rot",
+        annot.color.palette = NULL,
+        highlight = highlight,
+        row.fontsize = row.fontsize,
+        col.fontsize = col.fontsize,
+        ttl.fontsize = ttl.fontsize,
+        split = NULL,
+        column_names_rot = column_names_rot,
+        hm.path = hm.path,
+        file.name = "HM_mostSig",
+        plot.seperate = FALSE,
+        saveplot = TRUE,
+        prefix = NULL,
+        suffix = NULL,
+        save.format = save.format,
+        width = SigHM.width,
+        height = SigHM.height
+      )
+
+    if (is.na(hmall$result[1])) {
+      MSqb2:::.logg("WARN", paste( as.character(hmall$error),
+                                 "Row clusterring is not possible and will be set to FALSE. \n", sep = "\n") )
+      cluster.rows <- FALSE # heatmap breaks whenever row clustering does not work
+    } else {
+      vis.env$Heatmap_allComparisons <- hmall
+      break
+    }
+
+    if (itr == 2) {
+      if (is.na(hmall$result[1])) print("Heatmap cannot be generated.")
+      break
+    }
+  }
+
+
+
+
+
+  #### 16.2 heatmaps for individual comparisons ----
+  MSqb2:::.logg("info", "generating plot ... individual Heatmap \n")
+
+  if (uniqueN(topList$Comparison) > 1) {
+    hmDir <- file.path(hm.path, "Individual_Comparisons")
+    if (!dir.exists(hmDir)) {
+      dir.create(hmDir, recursive = TRUE)
+    }
+
+    hm_list <- list()
+    for (i.comp in unique(topList$Comparison)) {
+
+      # subset input according to contrast and condition levels included in contrast
+      sub.topList <- topList[Comparison == i.comp]
+      if (exists("ProteinDT.batchCorrected")) {
+        sub.ProteinDT <- ProteinDT.batchCorrected %>%
+          .[Condition %in% strsplit2(unique(sub.topList$Conditions), ";")]
+      } else {
+        sub.ProteinDT <- ProteinDT %>%
+          .[Condition %in% strsplit2(unique(sub.topList$Conditions), ";")]
+      }
+
+
+      cluster.rows <- org.cluster.rows
+      itr <- 0
+      repeat {
+        itr <- itr + 1
+        hmind <-
+          safe_genHM(
+            dt = sub.ProteinDT,
+            topl = sub.topList,
+            x.para = "Filename", #unique(c("Filename", "Condition", intersect(names(hmdt), names(metadata)))),
+            y.para = "Protein",
+            comp = "Comparison",
+            row.tag = row.tag,
+            Heatmap.type = "mostSig",
+            adj.p = "adj.P.Val",
+            meas = "Abundance",
+            hm.order.type = "each.first", # or "cycle"
+            topNhm = topNhm.ind,
+            annot.bars.para = intersect(names(global.colors), names(sub.ProteinDT)),
+            split.rows = NULL,
+            scale.rows = scl,
+            order.rows.by = order.rows.by,
+            cluster.rows = cluster.rows,
+            clustering_distance_rows = clustering_distance_rows,
+            clustering_method_rows = clustering_method_rows,
+            cluster.columns = TRUE,
+            clustering_distance_columns = clustering_distance_columns,
+            clustering_method_columns = clustering_method_columns,
+            body.color.palette = bd.plt,
+            heatmap_legend_side = heatmap_legend_side,
+            annotation_legend_side = annotation_legend_side,
+            HMname = HMname,
+            arrange.annot.bars.by.ref = arrange.annot.bars.by.ref,
+            main.legend.title = main.legend.title,
+            legend.height = unit(4, "cm"),
+            title.pos = "lefttop-rot",
+            annot.color.palette = manual.color.palette,
+            highlight = highlight,
+            row.fontsize = row.fontsize,
+            col.fontsize = col.fontsize,
+            ttl.fontsize = ttl.fontsize,
+            split = NULL,
+            column_names_rot = column_names_rot,
+            hm.path = hmDir,
+            file.name = paste0("HM_mostSig", i.comp),
+            plot.seperate = FALSE,
+            saveplot = TRUE,
+            prefix = prefix,
+            suffix = suffix,
+            save.format = save.format,
+            width = SigHM.ind.width,
+            height = SigHM.ind.height
+          )
+
+        if (is.na(hmind$result[[1]])) {
+          print(hmind$error %>% as.character())
+          print("row clusterring wil be set to FALSE.")
+          cluster.rows <- FALSE # heatmap breaks whenever row clustering does not wor
+        } else {
+          hm_list[[i.comp]] <- hmind
+          break
+        }
+
+        if (itr == 2) {
+          if (is.na(hmind$result[[1]])) print("Heatmap cannot be generated.")
+          break
+        }
+      }
+    }
+    if (length(hm_list) > 1) vis.env$Heatmap_individualComparisons <- hm_list
+  }
+  }
+  }
+
+
+
+
+  if (Venndiagram) {
+    MSqb2:::.logg("info", "generating plot ... Venndiagram \n")
+
+  #### 17. Venn & upset diagram ----
+    if (uniqueN(topList$Comparison) > 1) {
+      plot_Venn(input = topList,
+                set.column = "Comparison",
+                input.subset = venn.input.subset,
+                p.adj = "adj.P.Val",
+                p.adj.cut = venn.fdr.cutoff,
+                variable = venn.variable,
+                guide.palette = venn.palette,
+
+                venn.low.col = "grey90",
+                venn.high.col = "grey30",
+                output.plot = "both",
+                width.venn = venn.width,
+                height.venn = venn.height,
+                width.upset = upset.width,
+                height.upset = upset.height,
+
+                path = VennDiagram.path,
+                filename.xls = "VennDiagram_list.xlsx")
+      }
+    }
+
+
+
+
+  if (ProfilePlots) {
+    MSqb2:::.logg("info", "generating plot ... Protein ProfilePlots \n")
+
+  #### 18. profileplot for tophit proteins ----
+  ## add highlights
+  if (!is.null(highlight)) {
+    hl.col <- names(which(apply(topList, 2, function(x) any(x %in% highlight))))
+    topl.sub <- topList[get(hl.col) %in% intersect(highlight, unlist(topList[, ..hl.col])), list(Comparison, Protein)]
+    topl <- topList[, .(Protein = head(Protein, topN.profileplot)), by = "Comparison"] %>%
+      list(., topl.sub) %>%
+      rbindlist(., use.names = TRUE) %>%
+      unique()
+  } else {
+    topl <- topList[, .(Protein = head(Protein, topN.profileplot)), by = "Comparison"]
+  }
+
+
+  for (pr in unique(topl$Protein)) {
+    if (exists("ProteinDT.batchCorrected")) {
+      prtdt <- ProteinDT.batchCorrected
+      pptdt <- PeptideDT.batchCorrected
+    } else {
+      prtdt <- ProteinDT
+      pptdt <- PeptideDT.normalised
+    }
+
+    plot_ProteinProfile(
+      protein = pr,
+      workn = pptdt,
+      workmp = prtdt,
+      facet.by = ProfilePlot.facet,
+      col.plt = "jco",
+      ttl.para = c("Protein", "Genes"),
+      x.text.angel = 90,
+      sep.char = "&.&.&",
+      saveplot = TRUE,
+      path = ProfilePlots.path,
+      height = ProfilePlot.height,
+      width = ProfilePlot.width,
+      legend.position = "bottom",
+      legend.font.size = 8,
+      save.format = save.format
+    )
+  }
+  }
+
+
+
+
+  save(vis.env, file = file.path(
+    Analysis.path,
+    paste0(prefix, "_MSqb_Vis_Image_", suffix, add.date.tag, ".Rdata")
+  ))
+
+  return(vis.env)
+}
