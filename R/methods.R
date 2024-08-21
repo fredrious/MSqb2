@@ -1,4 +1,3 @@
-
 # %%%%%%%%%%%%%%%%%%%%%%%%
 #' Import Objects from Parent Environment
 #'
@@ -20,14 +19,15 @@
 #'   c <- 3
 #'   impTopEnv()
 #'   # Now `a` and `b` are available in this environment
-#'   print(a)  # Should print 1
-#'   print(b)  # Should print 2
+#'   print(a) # Should print 1
+#'   print(b) # Should print 2
 #' }
 #'
 #' @export
 impTopEnv <- function() {
-   list2env(mget(names(parent.frame(n = 2)), envir = parent.frame(n = 2)),
-            envir = parent.frame(n = 1))
+  list2env(mget(names(parent.frame(n = 2)), envir = parent.frame(n = 2)),
+    envir = parent.frame(n = 1)
+  )
 }
 
 
@@ -51,14 +51,15 @@ impTopEnv <- function() {
 #'   # a and b are in the current environment
 #'   expTopEnv()
 #'   # a and b should now be available in the parent environment
-#'   print(parent.frame()$a)  # Should print 1
-#'   print(parent.frame()$b)  # Should print 2
+#'   print(parent.frame()$a) # Should print 1
+#'   print(parent.frame()$b) # Should print 2
 #' }
 #'
 #' @export
 expTopEnv <- function() {
-   list2env(mget(names(parent.frame(n = 1)), envir = parent.frame(n = 1)),
-            envir = parent.frame(n = 2))
+  list2env(mget(names(parent.frame(n = 1)), envir = parent.frame(n = 1)),
+    envir = parent.frame(n = 2)
+  )
 }
 
 
@@ -90,81 +91,17 @@ expTopEnv <- function() {
 #'   c <- 3
 #'   expandList(my_list)
 #'   # Now `a` and `b` are available in this environment
-#'   print(a)  # Should print 1
-#'   print(b)  # Should print 2
+#'   print(a) # Should print 1
+#'   print(b) # Should print 2
 #' }
 #'
 #' @export
 expandList <- function(x) {
   list2env(mget(names(x), envir = as.environment(x)),
-           envir = parent.frame())
+    envir = parent.frame()
+  )
 }
 
-
-
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-#' Custom Assignment Operator for Parent Environment
-#'
-#' This custom operator `%<-1%` assigns a value to a variable in the parent
-#' environment of the function where it is called. It is a shorthand for
-#' assigning a value to an object one level up in the environment hierarchy.
-#'
-#' @param x A character string specifying the name of the variable to which the
-#' value should be assigned.
-#' @param y The value to be assigned to the variable.
-#'
-#' @details The operator uses `assign` to place the value `y` into a variable named `x`
-#' in the parent environment of the caller, specifically in the environment that is
-#' two levels up from the current environment.
-#'
-#' @return The value `y`, invisibly.
-#' @examples
-#' # Example usage:
-#' a <- 1
-#' {
-#'   b %<-1% 2
-#'   print(b)  # Should print 2, as `b` is assigned in the parent environment
-#' }
-#'
-#' @export
-`%<-1%` <- function(x, y) {
-  assign(x, y, pos = parent.frame(n = 2))
-}
-
-
-
-# %%%%%%%%%%%%%%%%%%%%%%%%
-#' Custom Assignment Operator for Global Environment
-#'
-#' This custom operator `%<-g%` assigns a value to a variable in the global
-#' environment, regardless of the current environment where it is called.
-#' It provides a convenient way to assign values to variables in the global
-#' environment directly from within functions or other environments.
-#'
-#' @param x A character string specifying the name of the variable to which the
-#' value should be assigned.
-#' @param y The value to be assigned to the variable.
-#'
-#' @details The operator uses `assign` to place the value `y` into a variable named `x`
-#' in the global environment. This can be useful for modifying global variables
-#' from within functions or other non-global environments.
-#'
-#' @return The value `y`, invisibly.
-#' @examples
-#' # Example usage:
-#' my_global_var <- NULL
-#' {
-#'   "my_global_var" %<-g% 10
-#'   print(my_global_var)  # Should print 10, as `my_global_var` is assigned in the global environment
-#' }
-#'
-#' @export
-`%<-g%` <- function(x, y) {
-  assign(x, y, pos = .GlobalEnv)
-}
 
 
 
@@ -211,19 +148,20 @@ expandList <- function(x) {
 #' @import checkmate
 #' @export
 .checkBuildArgs <- function() {
-
   impTopEnv() # import all objects from 1 env backward (parent.frame)
 
   MSqb2:::.loggAssert(assertCharacter(measurements.file))
   MSqb2:::.loggAssert(assertCharacter(metadata.file, len = 1))
 
   assert(checkCharacter(measurements.file.sheet, len = 1),
-         checkInt(measurements.file.sheet, null.ok = TRUE),
-         combine = "or")
+    checkInt(measurements.file.sheet, null.ok = TRUE),
+    combine = "or"
+  )
 
   assert(checkCharacter(metadata.file.sheet, len = 1),
-         checkInt(metadata.file.sheet, null.ok = TRUE),
-         combine = "or")
+    checkInt(metadata.file.sheet, null.ok = TRUE),
+    combine = "or"
+  )
 
   assert(checkChoice(ms.software, c("MQ", "PD")))
 
@@ -252,41 +190,44 @@ expandList <- function(x) {
 #' @import logger magrittr
 #' @export
 .logg <- function(level, msg) {
-
-   # define/call log file
-   log_file <-
-   if ("log_file" %in% ls(envir = .GlobalEnv)) {
+  # define/call log file
+  log_file <-
+    if ("log_file" %in% ls(envir = .GlobalEnv)) {
       get("log_file", envir = .GlobalEnv)
-   } else {
+    } else {
       "_temp_log_file.log"
-   }
+    }
 
-   # get level
-   l.level <-  substitute(level) %>% as.character %>% tolower()
-   level <- l.level %>% toupper
+  # get level
+  l.level <- substitute(level) %>%
+    as.character() %>%
+    tolower()
+  level <- l.level %>% toupper()
 
-   # include all logging levels
-   log_threshold(TRACE)
+  # include all logging levels
+  log_threshold(TRACE)
 
-   #!! logging with color-coding does not work properly with append_file/tee!
-   # I defined therefore two separate logging layout for console and file.
-   # print in file:
-   logger.file <-
-      layout_glue_generator(
-         format = '---\n••• MSqb {level}:\n{msg}\n')
-   log_appender(appender_file(log_file,))
-   log_layout(logger.file)
-   do.call(glue("log_{l.level}"), list(msg))
+  # !! logging with color-coding does not work properly with append_file/tee!
+  # I defined therefore two separate logging layout for console and file.
+  # print in file:
+  logger.file <-
+    layout_glue_generator(
+      format = "---\n••• MSqb {level}:\n{msg}\n"
+    )
+  log_appender(appender_file(log_file, ))
+  log_layout(logger.file)
+  do.call(glue("log_{l.level}"), list(msg))
 
-   # print in console:
-   logger.console <-
-      layout_glue_generator(
-         format = '{colorize_by_log_level(paste("---\n••• MSqb", level, ":\n", msg), levelr)}\n')
-   log_appender(appender_console)
-   log_layout(logger.console)
-   do.call(glue("log_{l.level}"), list(msg))
-   # options(show.error.messages = FALSE)
-   if (tolower(level) %in% c("fatal", "error")) stop(call. = FALSE)
+  # print in console:
+  logger.console <-
+    layout_glue_generator(
+      format = '{colorize_by_log_level(paste("---\n••• MSqb", level, ":\n", msg), levelr)}\n'
+    )
+  log_appender(appender_console)
+  log_layout(logger.console)
+  do.call(glue("log_{l.level}"), list(msg))
+  # options(show.error.messages = FALSE)
+  if (tolower(level) %in% c("fatal", "error")) stop(call. = FALSE)
 }
 
 
@@ -333,9 +274,12 @@ expandList <- function(x) {
 .mk.dir <- function(path, sub.dir, prefix = NULL, analysis.name = NULL,
                     suffix = NULL, add.date.tag = NULL) {
   for (i in seq_along(sub.dir)) {
-    sdir.p <- file.path(path,
-                        paste(c(prefix, sub.dir[i], analysis.name, suffix, add.date.tag),
-                              collapse = "_"))
+    sdir.p <- file.path(
+      path,
+      paste(c(prefix, sub.dir[i], analysis.name, suffix, add.date.tag),
+        collapse = "_"
+      )
+    )
     if (!dir.exists(sdir.p)) {
       dir.create(sdir.p, recursive = TRUE)
     }
@@ -382,30 +326,42 @@ expandList <- function(x) {
 #' @import glue
 
 .find.file <- function(input, output, toData, where) {
+  # input %<>% .[setdiff(names(input), names(output))] ## check this !!!
 
-   # input %<>% .[setdiff(names(input), names(output))] ## check this !!!
+  fls <- lapply(input, function(x) {
+    grep(
+      pattern = x,
+      list.files(where,
+        all.files = TRUE,
+        recursive = TRUE,
+        full.names = TRUE
+      ),
+      value = TRUE
+    )
+  })
+  fls <- fls[which(!sapply(fls, function(x) identical(x, character(0))))]
+  mx <- which(sapply(fls, length) > 1)
+  if (length(mx) > 0) {
+    MSqb2:::.logg(
+      level = FATAL,
+      glue(
+        "Multiple matches were found for the following input file(s):\n",
+        "* {glue_collapse(unlist(fls[mx]), sep = '\n* ')}",
+        "\n\nPlease provide the complete file path."
+      )
+    )
+  }
 
-   fls <- lapply(input, function(x) grep(pattern = x,
-                                  list.files(where,
-                                             all.files = TRUE,
-                                             recursive = TRUE,
-                                             full.names = TRUE),
-                                  value = TRUE))
-   fls <- fls[which(!sapply(fls, function(x) identical(x, character(0))))]
-   mx <- which(sapply(fls, length) > 1)
-   if (length(mx) > 0) {
-      MSqb2:::.logg(level = FATAL,
-            glue("Multiple matches were found for the following input file(s):\n",
-                 "* {glue_collapse(unlist(fls[mx]), sep = '\n* ')}",
-                 "\n\nPlease provide the complete file path."))
-   }
-
-   if (length(fls) > 0) {
-   list2env(list("output" = append(output, fls),
-                 "input" = input,
-                 "toData" = toData),
-            envir = parent.frame())
-   }
+  if (length(fls) > 0) {
+    list2env(
+      list(
+        "output" = append(output, fls),
+        "input" = input,
+        "toData" = toData
+      ),
+      envir = parent.frame()
+    )
+  }
 }
 
 
@@ -437,74 +393,85 @@ expandList <- function(x) {
 #' print(output_files)
 #'
 .check.file <- function(input, dpth = Data.path, toData = FALSE, interactive = TRUE) {
-
-   input %<>% lapply(., function(x) !is.null(x)) %>% unlist %>% input[.]
-   output <- list()
-   ninp <- length(input)
-
-
-   ## check if input files are full paths and exist
-   idx <- which(file.exists(unlist(input)))
-   if (length(idx) > 0) {
-      output[names(input)[idx]] <- input[idx]
-      input <- input[setdiff(names(input), names(output))]
-      toData <- TRUE
-   }
+  input %<>% lapply(., function(x) !is.null(x)) %>%
+    unlist() %>%
+    input[.]
+  output <- list()
+  ninp <- length(input)
 
 
-   ## check if input files exist in dpth path
-   if (length(input) > 0) .find.file(input, output, toData, dpth)
+  ## check if input files are full paths and exist
+  idx <- which(file.exists(unlist(input)))
+  if (length(idx) > 0) {
+    output[names(input)[idx]] <- input[idx]
+    input <- input[setdiff(names(input), names(output))]
+    toData <- TRUE
+  }
 
 
-   ## check if input files not exist in dpth path, but do exist in working directory
-   if (length(output) != ninp) .find.file(input, output, toData, getwd())
+  ## check if input files exist in dpth path
+  if (length(input) > 0) .find.file(input, output, toData, dpth)
 
 
-   ## stop if files could not be found!
-   if  (length(output) != ninp) {
-      nafile <- setdiff(names(input), names(output)) # the file that was not found!
+  ## check if input files not exist in dpth path, but do exist in working directory
+  if (length(output) != ninp) .find.file(input, output, toData, getwd())
 
-      if (basename(dpth)  != "Scripts") {
-      MSqb2:::.logg(level = FATAL,
-            glue("Following file(s) could not be found in the working directory.\n",
-                 "{glue_collapse(nafile, sep = '\n')}\n",
-                 "Either copy them in the working directory (preferably in 'Data' directory) ",
-                 "or provide the full path.") )
-      } else {
-         MSqb2:::.logg(level = WARN,
-               glue("The following config file does not exist or could not be found in the working ",
-                    "directory.\n {glue_collapse(input, sep = '\n')}\n",
-                    "By default, a config file will be generated using the internal config file template. ",
-                    "Alternatively you can provide the correct path and rerun msqb_config.") )
-         output <- ""
+
+  ## stop if files could not be found!
+  if (length(output) != ninp) {
+    nafile <- setdiff(names(input), names(output)) # the file that was not found!
+
+    if (basename(dpth) != "Scripts") {
+      MSqb2:::.logg(
+        level = FATAL,
+        glue(
+          "Following file(s) could not be found in the working directory.\n",
+          "{glue_collapse(nafile, sep = '\n')}\n",
+          "Either copy them in the working directory (preferably in 'Data' directory) ",
+          "or provide the full path."
+        )
+      )
+    } else {
+      MSqb2:::.logg(
+        level = WARN,
+        glue(
+          "The following config file does not exist or could not be found in the working ",
+          "directory.\n {glue_collapse(input, sep = '\n')}\n",
+          "By default, a config file will be generated using the internal config file template. ",
+          "Alternatively you can provide the correct path and rerun msqb_config."
+        )
+      )
+      output <- ""
+    }
+    Sys.sleep(0.1)
+  }
+
+
+  if (toData) {
+    idx <- which(lapply(output, dirname) != dpth)
+    if (length(idx) > 0 & interactive) {
+      MSqb2:::.logg(TRACE, glue(
+        "Input files are recommended (but not required!) to be stored ",
+        "in the {basename(dpth)} directory: \n{dpth} \n\n",
+        "Do you want to copy the following files in the 'Data' directory?\n\n",
+        paste(output[names(idx)], collapse = "\n")
+      ))
+
+      cp.data <- select.list(c("yes", "no"))
+
+      if (cp.data == "yes") {
+        lapply(output[names(idx)], function(x) file.copy(from = x, to = dpth, overwrite = FALSE))
+        MSqb2:::.logg(SUCCESS, glue(
+          "Following file(s) were copied to '{basename(dpth)}' sub-directory:\n",
+          "{glue_collapse(output[names(idx)], sep = '\n')}\n",
+          "\nThese files will be utilised throughout the workflow and in the future analysis.\n"
+        ))
+
+        output[names(idx)] <- lapply(sapply(output[names(idx)], basename), function(x) file.path(dpth, x))
       }
-      Sys.sleep(0.1)
-   }
-
-
-   if (toData) {
-      idx <- which(lapply(output, dirname) != dpth)
-      if (length(idx) > 0 & interactive) {
-         MSqb2:::.logg(TRACE, glue(
-            "Input files are recommended (but not required!) to be stored ",
-            "in the {basename(dpth)} directory: \n{dpth} \n\n",
-            "Do you want to copy the following files in the 'Data' directory?\n\n",
-            paste(output[names(idx)], collapse = "\n")))
-
-         cp.data <- select.list(c("yes", "no"))
-
-         if (cp.data == "yes") {
-            lapply(output[names(idx)], function(x) file.copy(from = x, to = dpth, overwrite = FALSE))
-            MSqb2:::.logg(SUCCESS, glue(
-               "Following file(s) were copied to '{basename(dpth)}' sub-directory:\n",
-               "{glue_collapse(output[names(idx)], sep = '\n')}\n",
-               "\nThese files will be utilised throughout the workflow and in the future analysis.\n"))
-
-            output[names(idx)] <- lapply(sapply(output[names(idx)], basename), function(x) file.path(dpth, x))
-         }
-      }
-   }
-   return(output)
+    }
+  }
+  return(output)
 }
 
 
@@ -536,15 +503,14 @@ expandList <- function(x) {
 #' @import readxl
 #' @export
 read.file <- function(file, sheet = 1) {
-
-   ext <- toupper(strsplit2(file, "\\.")[-1])
-   if (any(ext %in% c("XLSX", "XLS"))) {
-      dt <- readxl::read_excel(file, sheet = sheet) %>% as.data.table(.)
-   } else {
-      dt <- fread(file, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
-   }
-   MSqb2::char2fact(dt) %>%
-   return()
+  ext <- toupper(strsplit2(file, "\\.")[-1])
+  if (any(ext %in% c("XLSX", "XLS"))) {
+    dt <- readxl::read_excel(file, sheet = sheet) %>% as.data.table(.)
+  } else {
+    dt <- fread(file, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
+  }
+  MSqb2::char2fact(dt) %>%
+    return()
 }
 
 
@@ -572,35 +538,39 @@ read.file <- function(file, sheet = 1) {
 #' @import glue
 .importConfigfile <- function(conf.fl, Scripts.path, analysis.name,
                               add.date.tag, whichConf, conf.args) {
+  if (!is.null(conf.fl)) conf.pth <- .check.file(conf.fl, dpth = Scripts.path, toData = FALSE)
+  # if (exists("conf.pth") && conf.pth != "") conf.pth <- basename(conf.fl)
+  if ((!exists("conf.fl") || is.null(conf.fl) ||
+    (exists("conf.pth") && conf.pth == ""))) { # if configuration file does not exist, create one!
+    conf.pth <- file.path(
+      Scripts.path,
+      paste0(
+        ifelse(whichConf == "workflow", "msqb_config", "msqb_config_viz"),
+        ifelse(is.null(analysis.name), "", paste0("_", analysis.name)),
+        add.date.tag, ".R"
+      )
+    )
+    Sys.sleep(0.2)
+    makeConfigFile(conf.file = conf.pth, whichConf = whichConf)
+  }
 
-   if (!is.null(conf.fl)) conf.pth <- .check.file(conf.fl, dpth = Scripts.path, toData = FALSE)
-   # if (exists("conf.pth") && conf.pth != "") conf.pth <- basename(conf.fl)
-   if ((!exists("conf.fl") || is.null(conf.fl) ||
-        (exists("conf.pth") && conf.pth == "" ) )) { #if configuration file does not exist, create one!
-      conf.pth <- file.path(
-         Scripts.path,
-         paste0(
-            ifelse(whichConf == "workflow", "msqb_config", "msqb_config_viz"),
-            ifelse(is.null(analysis.name), "", paste0("_", analysis.name)),
-            add.date.tag, ".R") )
-      Sys.sleep(0.2)
-      makeConfigFile(conf.file = conf.pth, whichConf = whichConf)
-   }
+  suppressWarnings(
+    if (length(within(conf.args, rm(interactive))) > 0) {
+      MSqb2:::.logg(
+        TRACE,
+        glue(
+          "Parameters manually passed to the msqb_config function will substitude ",
+          "the parameters in the config.file (if provided). These are as follows:\n",
+          "{glue_collapse(names(within(conf.args, rm(interactive))), sep = '\n')} \n"
+        )
+      )
+    }
+  )
 
-   suppressWarnings(
-      if (length(within(conf.args, rm(interactive))) > 0) {
-         MSqb2:::.logg(TRACE,
-              glue(
-            "Parameters manually passed to the msqb_config function will substitude ",
-            "the parameters in the config.file (if provided). These are as follows:\n",
-            "{glue_collapse(names(within(conf.args, rm(interactive))), sep = '\n')} \n"))
-      }
-   )
-
-   MSqb2:::.logg(INFO, glue("Config parameters are stored under: {conf.pth}"))
-   conf.pth <- unlist(conf.pth)
-   eval(parse(text = readLines(conf.pth)), envir = parent.frame())
-   return(conf.pth)
+  MSqb2:::.logg(INFO, glue("Config parameters are stored under: {conf.pth}"))
+  conf.pth <- unlist(conf.pth)
+  eval(parse(text = readLines(conf.pth)), envir = parent.frame())
+  return(conf.pth)
 }
 
 
@@ -622,14 +592,16 @@ read.file <- function(file, sheet = 1) {
 #'
 #' @return The function does not return a value. It stops execution and logs an error if any assertion fails.
 .loggAssert <- function(xpr) {
-   impTopEnv()
-   .collAssert = checkmate::makeAssertCollection()
-   xpr <- deparse(substitute(xpr)) %>% gsub(" ", "", .) %>% paste(., collapse = "")
-   xpr <- paste0(substr(xpr, 1, nchar(xpr)-1), ",add=.collAssert)")
-   eval(parse(text = xpr))
-   if (!.collAssert$isEmpty()) {
-      MSqb2:::.logg(error, skip_formatter(.collAssert$getMessages()))
-   }
+  impTopEnv()
+  .collAssert <- checkmate::makeAssertCollection()
+  xpr <- deparse(substitute(xpr)) %>%
+    gsub(" ", "", .) %>%
+    paste(., collapse = "")
+  xpr <- paste0(substr(xpr, 1, nchar(xpr) - 1), ",add=.collAssert)")
+  eval(parse(text = xpr))
+  if (!.collAssert$isEmpty()) {
+    MSqb2:::.logg(error, skip_formatter(.collAssert$getMessages()))
+  }
 }
 
 
@@ -704,7 +676,7 @@ char2fact <- function(dt) {
   fc <- names(Filter(is.factor, dt))
   dt[, (fc) := lapply(.SD, droplevels), .SDcols = fc]
   # sort based on alphanumeric -> natural (lexicographic)
-  dt[, (fc) := lapply(.SD, \(x) factor(x, levels = unique(x) %>% stringr::str_sort(., numeric = TRUE) )), .SDcols = fc]
+  dt[, (fc) := lapply(.SD, \(x) factor(x, levels = unique(x) %>% stringr::str_sort(., numeric = TRUE))), .SDcols = fc]
 
 
   if (setback2df) dt <- data.frame(dt, row.names = rn)
@@ -774,30 +746,34 @@ int2fact <- function(dt) {
 #'
 #' @import glue
 .match_ModelFormula_metadata <- function(dsgn, frm) {
-   fit.para <- c(all.vars(as.formula(frm)))
-   if (any(!fit.para %in% names(dsgn))) {
-      xpara <- setdiff(fit.para, names(dsgn))
-      MSqb2:::.logg(TRACE,
-         glue(
-            "The following parameter(s) that used in the model formula do ",
-            "not match the column names in the metadata! \n\n",
-            "missing parameter(s): {xpara}",
-            "\nmodel formula: {frm}",
-            "\n\nDo you want to stop the process and modify the metadata ",
-            "or model formula? By selecting 'No' the missing parameter(s) ",
-            "will be removed from  model formula and the workflow continues. ",
-            "Note that for complex formulae this might result in a false formula. ",
-            "It is therefore recommended to double-check the model formula or rerun ",
-            "the analysis after correcting the input data or the model formula."
-         ))
+  fit.para <- c(all.vars(as.formula(frm)))
+  if (any(!fit.para %in% names(dsgn))) {
+    xpara <- setdiff(fit.para, names(dsgn))
+    MSqb2:::.logg(
+      TRACE,
+      glue(
+        "The following parameter(s) that used in the model formula do ",
+        "not match the column names in the metadata! \n\n",
+        "missing parameter(s): {xpara}",
+        "\nmodel formula: {frm}",
+        "\n\nDo you want to stop the process and modify the metadata ",
+        "or model formula? By selecting 'No' the missing parameter(s) ",
+        "will be removed from  model formula and the workflow continues. ",
+        "Note that for complex formulae this might result in a false formula. ",
+        "It is therefore recommended to double-check the model formula or rerun ",
+        "the analysis after correcting the input data or the model formula."
+      )
+    )
 
-      mtch <- select.list(c("yes", "no"))
+    mtch <- select.list(c("yes", "no"))
 
-      if (mtch == "yes") {
-         MSqb2:::.logg(ERROR, "Error in matching model formula and cathegorical variables in the metadata.")
-      } else frm <- gsub(xpara, "NULL", frm)
-   }
-   return(frm)
+    if (mtch == "yes") {
+      MSqb2:::.logg(ERROR, "Error in matching model formula and cathegorical variables in the metadata.")
+    } else {
+      frm <- gsub(xpara, "NULL", frm)
+    }
+  }
+  return(frm)
 }
 
 
@@ -828,48 +804,52 @@ int2fact <- function(dt) {
 #'
 #' @export
 readConfigPara <- function(build.para, config.para, config.file, config.type, ...) {
-   if (!exists("build.para", mode = "list")) {
-      MSqb2:::.logg(FATAL, glue(
-         "build.para not provided. ",
-         "Please run msqb_build() to generate build parameters (see vignette)."
-      ))
-   } else .expandList(build.para)
+  if (!exists("build.para", mode = "list")) {
+    MSqb2:::.logg(FATAL, glue(
+      "build.para not provided. ",
+      "Please run msqb_build() to generate build parameters (see vignette)."
+    ))
+  } else {
+    .expandList(build.para)
+  }
 
-   conf.str <- switch(config.type,
-                      "viz" = c("config.vis.file", "config.para.viz"),
-                      "wf" = c("config.file", "config.para"))
-
-
-   if ( (exists("config.file") && !is.null(config.file)) &
-        (exists("config.para") && !is.null(config.para)) ) {
-      MSqb2:::.logg(TRACE, glue(
-         "Both {conf.str[1]} and {conf.str[2]} have been provided! ",
-         "Do you want the parameters stored in {conf.str[1]} to be loaded? ",
-         "By chosing NO the parameters in {conf.str[2]} will be loaded and ",
-         "a new {conf.str[1]} will be generated."
-      ))
-      conf.res <- select.list(c("yes", "no"))
-      if (conf.res == "yes") config.para <- NULL else config.file <- NULL
-   }
+  conf.str <- switch(config.type,
+    "viz" = c("config.vis.file", "config.para.viz"),
+    "wf" = c("config.file", "config.para")
+  )
 
 
-   ## either read or generate config parameters
-   conf.args <- as.list(substitute(list(...)))[-1L]
-   if (!exists("config.para", mode = "list") || is.null(config.para) || length(conf.args) > 0) {
-      conf.para <-
-         switch(
-            config.type,
-              "wf"  = msqb_config(build.para = build.para, config.file = config.file, ...),
-              "viz" = msqb_config_viz(build.para = build.para, config.viz.file = config.file, ...)
-         )
-   } else conf.para <- config.para
+  if ((exists("config.file") && !is.null(config.file)) &
+    (exists("config.para") && !is.null(config.para))) {
+    MSqb2:::.logg(TRACE, glue(
+      "Both {conf.str[1]} and {conf.str[2]} have been provided! ",
+      "Do you want the parameters stored in {conf.str[1]} to be loaded? ",
+      "By chosing NO the parameters in {conf.str[2]} will be loaded and ",
+      "a new {conf.str[1]} will be generated."
+    ))
+    conf.res <- select.list(c("yes", "no"))
+    if (conf.res == "yes") config.para <- NULL else config.file <- NULL
+  }
 
-   # expand conf.para
-   .expandList(conf.para)
-   # remove junk
-   suppressWarnings(rm(conf.para, conf.str, config.file, config.type, conf.res, config.para))
-   # export all to top env.
-   expTopEnv()
+
+  ## either read or generate config parameters
+  conf.args <- as.list(substitute(list(...)))[-1L]
+  if (!exists("config.para", mode = "list") || is.null(config.para) || length(conf.args) > 0) {
+    conf.para <-
+      switch(config.type,
+        "wf"  = msqb_config(build.para = build.para, config.file = config.file, ...),
+        "viz" = msqb_config_viz(build.para = build.para, config.viz.file = config.file, ...)
+      )
+  } else {
+    conf.para <- config.para
+  }
+
+  # expand conf.para
+  .expandList(conf.para)
+  # remove junk
+  suppressWarnings(rm(conf.para, conf.str, config.file, config.type, conf.res, config.para))
+  # export all to top env.
+  expTopEnv()
 }
 
 
@@ -912,9 +892,9 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
   }
 
   dl <- melt(dw,
-             id.vars = row.p,
-             variable.name = "dummy",
-             value.name = val
+    id.vars = row.p,
+    variable.name = "dummy",
+    value.name = val
   )
 
   dl[, (col.p) := tstrsplit(dummy, sp, fixed = TRUE)]
@@ -950,9 +930,11 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
 #' @examples
 #' # Example with a data.table input
 #' library(data.table)
-#' long_data <- data.table(Category = rep(c("A", "B", "C"), each = 3),
-#'                         Group = rep(c("X", "Y", "Z"), 3),
-#'                         Abundance = 1:9)
+#' long_data <- data.table(
+#'   Category = rep(c("A", "B", "C"), each = 3),
+#'   Group = rep(c("X", "Y", "Z"), 3),
+#'   Abundance = 1:9
+#' )
 #' wide_data <- .l2w(long_data, col.p = "Group", row.p = "Category")
 #'
 #' # Example returning a matrix
@@ -976,9 +958,9 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
   )
 
   dw <- dcast.data.table(dl,
-                         formula = form,
-                         value.var = eval(val),
-                         sep = sp, ...
+    formula = form,
+    value.var = eval(val),
+    sep = sp, ...
   ) # cast input data -- wide format
 
   if (!is.null(Mat.rownm)) {
@@ -1039,11 +1021,10 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
 #' @export
 
 cleanDataPara <- function(dt, complete.check = FALSE, # export2env = FALSE
-                           subsymDT = data.table(
-                             symout = c("\\~", "\\+", "\\:", "\\|", "\\-", "\\(", "\\)", "\\/", " "),
-                             symin = c("", ".", "", "", "_", "", "", ".", "")
-                           )) {
-
+                          subsymDT = data.table(
+                            symout = c("\\~", "\\+", "\\:", "\\|", "\\-", "\\(", "\\)", "\\/", " "),
+                            symin = c("", ".", "", "", "_", "", "", ".", "")
+                          )) {
   if (prod((c("symout", "symin") %in% names(subsymDT))) != 1) {
     subsymDT[, var := c("symout", "symin")] %>% meltsub.f(.) -> subsymDT
   }
@@ -1081,7 +1062,6 @@ cleanDataPara <- function(dt, complete.check = FALSE, # export2env = FALSE
         }
       }
     }
-
   }
 
   if (is.vector(dt)) {
@@ -1124,17 +1104,17 @@ cleanDataPara <- function(dt, complete.check = FALSE, # export2env = FALSE
 order.num <- function(dt, x) {
   xo <- dt[, ..x] %>% unlist()
   fct <- ifelse(is.factor(xo), TRUE, FALSE)
-  if (fct) xo %>% unique() %>% as.character()
-  ix <- xo %>% gsub("[^[:digit:]]", "", .) %>% as.numeric() %>% order() %>% xo[.]
+  if (fct) {
+    xo %>%
+      unique() %>%
+      as.character()
+  }
+  ix <- xo %>%
+    gsub("[^[:digit:]]", "", .) %>%
+    as.numeric() %>%
+    order() %>%
+    xo[.]
   dt <- dt[order(match(get(x), ix))]
   if (fct) dt[, (x) := factor(get(x), levels = ix)]
   return(dt)
 }
-
-
-
-
-
-
-
-

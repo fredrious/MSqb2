@@ -5,7 +5,7 @@ f1 <- function() {
   f2()
 }
 f2 <- function() {
-  impTopEnv()
+  MSqb2:::impTopEnv()
 }
 out <- f1()
 

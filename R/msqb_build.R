@@ -66,7 +66,7 @@ msqb_build <- function(measurements.file, # either psm file from ProteomDiscover
 
 
   # analysis logging
-  "log_file" %<-g% file.path(Analysis.path, "_log_files",
+  log_file <<- file.path(Analysis.path, "_log_files",
                         paste0("_log_", format(Sys.time(), "%Y%m%d_%Hh%Mm%Ss"), ".log"))
   MSqb2:::.logg(info, "Working dir:\n{getwd()}\nProject's name:\n{basename(getwd())}")
 

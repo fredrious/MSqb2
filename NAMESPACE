@@ -14,6 +14,14 @@ export(mergeMetadata)
 export(mkQCtables)
 export(msqb_build)
 export(msqb_viz)
+export(char2fact)
+export(int2fact)
 export(reformatRAW)
-export(subTopVar)
 import(data.table)
+importFrom("graphics", "image")
+importFrom("stats", "as.formula", "dt", "lm", "median", "medpolish",
+           "model.matrix", "na.exclude", "residuals", "sd", "setNames",
+           "var")
+importFrom("utils", "capture.output", "combn", "file.edit", "head",
+           "menu", "read.table", "select.list", "sessionInfo", "tail",
+           "write.table")
