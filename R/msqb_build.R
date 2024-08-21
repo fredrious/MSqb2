@@ -1,5 +1,3 @@
-
-
 #' Construct the skeleton of the analysis
 #'
 #' The function checks the input files and construct a folder structure to store output of the workflow.

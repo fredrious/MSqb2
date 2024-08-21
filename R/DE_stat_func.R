@@ -1,35 +1,93 @@
-
-#' Title
+#' Perform Differential Expression Analysis Using LIMMA
 #'
-#' @param data
-#' @param sample
-#' @param variable
-#' @param value
-#' @param model.formula
-#' @param limma.trend
-#' @param limma.robust
-#' @param limma.winsor.tail.p
-#' @param time.course
-#' @param spline.df
-#' @param removeTotalMissing
-#' @param pairwise.contrasts
-#' @param manual.contrasts
-#' @param choose.contrasts
-#' @param make.complex.contrasts
-#' @param blocking.parameter
-#' @param reverse.contrasts
-#' @param showWarnings
-#' @param prefix
-#' @param suffix
-#' @param rmSingleShotProteins
-#' @param add.vs.inContrast
-#' @param path
+#' This function performs differential expression analysis on MS data using limma (Linear Models for Microarray Data) package.
+#' It supports a wide range of experimental designs, including handling of technical replicates, blocking factors, and the application of contrasts
+#' to identify differentially expressed proteins or peptides.
 #'
-#' @return
+#' @param dat A `data.table` containing the MS data. The table should include columns for samples, variables (e.g., proteins),
+#'   and values (e.g., abundances).
+#' @param sample A character string specifying the column name that contains sample identifiers. Default is `"SampleID"`.
+#' @param variable A character string specifying the column name that contains the variables of interest (e.g., `"Protein"`). Default is `"Protein"`.
+#' @param value A character string specifying the column name that contains the values to be analyzed (e.g., `"Abundance"`). Default is `"Abundance"`.
+#' @param model.formula A character string specifying the model formula to be used in the analysis. Default is `"~ 0 + Condition"`.
+#' @param sva.obj An optional `sva` object for batch correction. Default is `NULL`.
+#' @param techrep A character string specifying the column name that contains technical replicates. If provided, these will be used as blocking factors. Default is `NULL`.
+#' @param limma.trend Logical or character. If `TRUE`, trend fitting is applied; if a character, it specifies the column name to be used for trend fitting. Default is `TRUE`.
+#' @param limma.robust Logical. If `TRUE`, robust fitting is applied in the eBayes step. Default is `TRUE`.
+#' @param limma.winsor.tail.p Logical or numeric. If `FALSE`, no winsorization is applied; if numeric, specifies the tail probability for winsorization. Default is `FALSE`.
+#' @param time.course Logical. If `TRUE`, a time course analysis is performed using spline regression. Default is `FALSE`.
+#' @param spline.df Integer. Degrees of freedom for spline regression in time course analysis. Default is `4`.
+#' @param removeTotalMissing Logical. If `TRUE`, rows with all missing values are removed from the analysis. Default is `TRUE`.
+#' @param pairwise.contrasts Logical. If `TRUE`, all pairwise contrasts between conditions are computed. Default is `TRUE`.
+#' @param pairwise.denominator Character vector. Specifies the condition levels to be used as denominators in pairwise contrasts. Default includes `"wt"`, `"wildtype"`, `"control"`, etc.
+#' @param manual.contrasts A list of manual contrasts to be applied. Default is `NULL`.
+#' @param choose.contrasts Logical. If `TRUE`, allows manual selection of contrasts from a list. Default is `FALSE`.
+#' @param make.complex.contrasts Logical. If `TRUE`, prompts the user to create complex contrasts. Default is `FALSE`.
+#' @param blocking.parameter A character string specifying the column name for blocking factors, typically technical replicates. Default is `NULL`.
+#' @param reverse.contrasts Logical. If `TRUE`, reverses the direction of the contrasts. Default is `FALSE`.
+#' @param showWarnings Logical. If `TRUE`, warnings are shown during execution. Default is `FALSE`.
+#' @param prefix A character string to prefix the output filenames. Default is `NULL`.
+#' @param suffix A character string to suffix the output filenames. Default is `NULL`.
+#' @param rmSingleShotProteins Logical. If `TRUE`, proteins with only one peptide are removed from the analysis. Default is `TRUE`.
+#' @param add.vs.inContrast Logical. If `TRUE`, the contrasts are labeled with "vs." between conditions. Default is `TRUE`.
+#' @param path A character string specifying the output directory for saving results. Default is the current working directory.
+#' @param ... Additional arguments passed to the underlying LIMMA functions.
+#'
+#' @return A list containing:
+#' \itemize{
+#'   \item `"fit_eb"`: The fitted model after applying eBayes.
+#'   \item `"fit_residuals"`: The residuals of the fit.
+#'   \item `"fit0"`: The initial fitted model before applying contrasts.
+#' }
+#'
+#' @details The `DE_stat_func` function is designed to handle complex experimental designs typical in mass spectrometry-based proteomics studies.
+#' It supports:
+#'
+#' \itemize{
+#'   \item **Technical Replicates**: When `techrep` is provided, the function accounts for repeated measures by using the `duplicateCorrelation` method from LIMMA.
+#'   \item **Time Course Analysis**: If `time.course` is `TRUE`, the function performs spline regression to model the effect of time.
+#'   \item **Contrast Definitions**: Users can define contrasts manually or choose from pairwise contrasts. Complex contrasts, such as average or delta-delta contrasts, can also be generated.
+#' }
+#'
+#' This function is suitable for both differential expression analysis in standard proteomics experiments and more complex designs involving time courses or technical replicates.
+#' When working with experiments that have potential batch effects, users can incorporate surrogate variable analysis (`sva.obj`) to correct for these.
+#'
+#' @importFrom limma lmFit makeContrasts eBayes duplicateCorrelation contrasts.fit
+#' @importFrom splines ns
+#' @importFrom stats model.matrix as.formula
+#' @importFrom glue glue
+#'
 #' @export
-#'
-#' @examples
-LimmaStat <- function(data,
+DE_stat_func <- function(dat,
+                      sample = "SampleID",
+                      variable = "Protein",
+                      value = "Abundance",
+                      model.formula = "~ 0 + Condition",
+                      sva.obj = NULL,
+                      techrep = NULL,
+                      limma.trend = TRUE,
+                      limma.robust = TRUE,
+                      limma.winsor.tail.p = FALSE,
+                      time.course = FALSE,
+                      spline.df = 4,
+                      removeTotalMissing = TRUE,
+                      pairwise.contrasts = TRUE,
+                      pairwise.denominator = c("wt", "wildtype", "wild-type", "cntrl", "control", "ctl", "untreated"),
+                      manual.contrasts = NULL,
+                      choose.contrasts = FALSE,
+                      make.complex.contrasts = FALSE,
+                      blocking.parameter = NULL, # column corresponding to technical replicate
+                      reverse.contrasts = FALSE,
+                      showWarnings = FALSE,
+                      prefix = NULL,
+                      suffix = NULL,
+                      rmSingleShotProteins = TRUE,
+                      add.vs.inContrast = TRUE,
+                      path = getwd(), ...) {
+  # function body...
+}
+
+DE_stat_func <- function(data,
                      sample = "SampleID",
                      variable = "Protein",
                      value = "Abundance",
@@ -264,7 +322,7 @@ LimmaStat <- function(data,
     # following condition levels better to be always in the denominator:
     # pairwise.denominator = c("wt", "wildtype", "wildt-ype", "cntrl", "control", "ctl", "untreated"),
     prs %<>% apply(., 2, \(x) {
-      if (toupper(x[1]) %in% toupper(pairwise.denominator)) 
+      if (toupper(x[1]) %in% toupper(pairwise.denominator))
         replace(x, c(1, 2), x[c(2, 1)]) else x})
 
 
@@ -342,7 +400,7 @@ LimmaStat <- function(data,
   if (make.complex.contrasts) {
     message(
       "Given A, B, C and D to be four condition levels, \'B - C\' is a simple pairwise contrast.\n",
-      "A complex contrast, on the other hand, can be defined like this: \n", 
+      "A complex contrast, on the other hand, can be defined like this: \n",
       "0.5*(A+B) - 0.5(C+D) i.e. contrast of average values\n",
       "or this\n",
       "0.5*(A-B) - 0.5(C-D) or the so-called delta-delta contrast.\n",
@@ -359,9 +417,9 @@ LimmaStat <- function(data,
                          graphics = FALSE, multiple = FALSE,
                          title = "Do you want a 'delta-delta' (i.e. A-B vs C-D) \nor an 'average' (i.e. mean(A+B+...) vs mean(C+D+...)) contrast?"
       )
-      
+
       if (cc == "delta-delta") {
-        
+
         cat("Considerring the formula (A-B vs C-D), ...")
         ll1 <- select.list(colnames(design.mat),
                           graphics = FALSE, multiple = FALSE,
@@ -377,9 +435,9 @@ LimmaStat <- function(data,
                            title = "choose Condition level to be passed to D.")
         ll <- c(ll1, ll2)
         rr <- c(rr1, rr2)
-        
+
       } else { # case of "average" contrast
-        
+
         cat("Considerring the formula mean(A+B+...) vs mean(C+D+...),")
         ll <- select.list(colnames(design.mat),
                           graphics = FALSE, multiple = TRUE,
@@ -388,7 +446,7 @@ LimmaStat <- function(data,
                           graphics = FALSE, multiple = TRUE,
                           title = "Choose Condition level to be passed to the right side of the contrast equation.")
       }
-     
+
 
 
       # only with equal weights (at the moment)!
@@ -431,7 +489,7 @@ LimmaStat <- function(data,
   ############################################
   # contrast fit and apply ebayes
   if (!time.course) fit_eb <- contrasts.fit(fit0, as.matrix(cnts)) else fit_eb <- fit0
-  
+
   if (!is.logical(limma.trend)) {
     if (!limma.trend %in% names(data)) {
       MSqb2:::.logg(level = "WARN", msg = "limma.trend must either be logical or either of 'PSM.count' and 'PSM.mean'. By default it will be set to TRUE")
@@ -439,7 +497,7 @@ LimmaStat <- function(data,
     } else {
       PSM.df <- unique(data[, c(variable, limma.trend), with = FALSE]) %>% data.frame(., row.names = variable)
       limma.trend <- PSM.df[rownames(fit_eb$coefficients), limma.trend] %>% log2()
-    } 
+    }
   }
   fit_eb <- eBayes(fit_eb, trend = limma.trend, robust = limma.robust)
 

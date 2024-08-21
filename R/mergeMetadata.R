@@ -1,34 +1,51 @@
-
-
-## merge data with exp design
-#' Title
+#' Merge Metadata with Mass Spectrometry Data
 #'
-#' @param msDT
-#' @param metadata
-#' @param extMixFrac
-#' @param int.nm
+#' This function merges metadata with mass spectrometry data, ensuring consistency between the pools and channels in both datasets.
+#' It performs checks to validate the presence and consistency of `Pool` and `Channel` information between the datasets, and adjusts
+#' them as necessary to match.
 #'
-#' @return
-#' @export
+#' @param msDT A `data.table` containing the mass spectrometry data. This table should include columns such as `Pool`, `Channel`, and `Protein`.
+#' @param metadata A `data.table` containing the metadata to be merged with `msDT`. This table should include columns such as `Pool` and `Channel`.
+#' @param extMixFrac A `data.table` containing additional information for external mix fractions, used if `Pool` information is missing in the metadata.
+#' @param int.nm A character string specifying the internal name used for processing. (This parameter is referenced in the function but not used within the provided code.)
+#'
+#' @return A list containing two elements:
+#' \itemize{
+#'   \item `"msDT"`: The merged mass spectrometry data as a `data.table`.
+#'   \item `"metadata"`: The merged metadata as a `data.table`.
+#' }
+#'
+#' @details The `mergeMetadata` function ensures that the `Pool` and `Channel` columns in the mass spectrometry data (`msDT`) and the metadata are consistent.
+#' It checks for the presence of `Pool` information in both datasets, adjusts levels if necessary, and merges the metadata into the mass spectrometry data.
+#'
+#' Specific steps include:
+#' \itemize{
+#'   \item Verifying and correcting `Pool` levels between `msDT` and `metadata`.
+#'   \item Handling cases where `Pool` information is missing in either `msDT` or `metadata`.
+#'   \item Ensuring consistency of `Channel` information between the datasets.
+#'   \item Merging the metadata into `msDT` with consideration for potential inconsistencies.
+#' }
 #'
 #' @examples
 #' dt <- data.table(ch = c("a", "b", "c"), Pool = rep(c("pa", "pb"), each = 3))
 #' exp <- data.table(ch = c("a", "b", "c"), Pool = rep(c("p1", "p2", "p3"), each = 3))
 #' mergeMetadata(dt, exp, "ch")
+#'
+#' @export
 mergeMetadata <- function(msDT, metadata, extMixFrac, int.nm) {
   MSqb2::char2fact(metadata)
   MSqb2::char2fact(msDT)
 
   ## CHECK THE POOL
   ## ---------------
-  
+
   # check if the pools are the same in PSM data and in dataset
   if ("Pool" %in% names(msDT)) {
     poollvl <- msDT$Pool %>%
       unique() %>%
       unlist()
   }
-  
+
   # check if the pools are the same in PSM data and in metadata
   if ("Pool" %in% names(metadata)) {
     poollvl.exp <- metadata$Pool %>%
@@ -146,7 +163,7 @@ mergeMetadata <- function(msDT, metadata, extMixFrac, int.nm) {
   msDT[, Channel := as.factor(as.character(Channel))]
   MSqb2::char2fact(msDT)
 
-  
+
   if (any(!names(metadata) %in% names(msDT))) {
     msDT <- merge(msDT, metadata, all.y = TRUE)
   }

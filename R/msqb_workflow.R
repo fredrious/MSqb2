@@ -150,7 +150,7 @@ msqb_workflow <- function(build.para,
 
   ## .........................................
   ## 4. Make summary tables for qc plots ----
-  QCtables <- mkQCtables(
+  QCtables <- create_QC_tables(
     msDT = msDT,
     metadata = metadata,
     ms.software = ms.software,
@@ -285,9 +285,9 @@ msqb_workflow <- function(build.para,
   #
   #   msDT <- callAnnotations(
   #     dat = msDT,
-  #     feature.annotation.source = feature.annotation.source, # "uniprot.web", "uniprot.file", "annotation.file"
+  #     feature.annotation.source = feature.annotation.source, # "uniprot", "uniprot.file", "annotation.file"
   #
-  #     # if source "uniprot.web":
+  #     # if source "uniprot":
   #     uniprot.input = "Protein",
   #     uniprot.output = "Genes",
   #     uniprot.KEY = "UNIPROTKB",
@@ -299,7 +299,7 @@ msqb_workflow <- function(build.para,
   #     # annotation.file = "221128_P-481-CL_Pool1_2_3 221202 prot.xlsx",
   #     shorten.gene.names = TRUE, # shorten the gene and protein names?
   #     split.char = ";",
-  #     save.annotation = TRUE, # only if annot.sourc == "uniprot.web"
+  #     save.annotation = TRUE, # only if annot.sourc == "uniprot"
   #     save.annotation.path = Tables.path,
   #     Data.path = Data.path
   #   )
@@ -352,7 +352,7 @@ msqb_workflow <- function(build.para,
   
   ## ...................
   ## 11. fit Limma ----
-  limma.fit <- LimmaStat(
+  limma.fit <- DE_stat_func(
     data = msDT,
     sample = "Filename",
     model.formula = model.formula, # model.formula,

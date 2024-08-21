@@ -1,35 +1,56 @@
-
-
-#' Title
+#' Annotate Protein Data with Gene Information
 #'
-#' @param dat
-#' @param feature.annotation.source
-#' @param uniprot.input
-#' @param uniprot.output
-#' @param uniprot.extra
-#' @param uniprot.KEY
-#' @param uniprot.species.name
-#' @param uniprot.taxId
-#' @param n.call
-#' @param uniprot.file
-#' @param annotation.file
-#' @param PD.Desc
-#' @param PD.Acc
-#' @param shorten.gene.names
-#' @param split.char
-#' @param save.annotation
-#' @param save.annotation.path
-#' @param Data.path
+#' This function annotates protein data by fetching gene information either from a local file or by querying the UniProt API.
+#' The function is designed to handle protein accessions, split multi-accession inputs, and resolve gene names, optionally
+#' shortening long gene names for easier visualization.
 #'
-#' @return
-#' @export
+#' @param dat A data table containing protein data with the columns specified by `uniprot.input`.
+#' @param feature.annotation.source Character string specifying the source of annotation. Options are `"uniprot.file"`, already generated `"annotation.file"` from a previous run, or `"uniprot"`.
+#' @param uniprot.input Character string specifying the column in `dat` containing protein accessions (default is `"Protein"`).
+#' @param uniprot.output Character string specifying the type of output desired from UniProt, such as `"Genes"` (default) or any other valid UniProt field.
+#' @param uniprot.extra Optional additional UniProt fields to retrieve (default is `NULL`).
+#' @param uniprot.KEY The key type used for UniProt queries (default is `"UNIPROTKB"`).
+#' @param uniprot.species.name Optional full species name used for UniProt queries (e.g., `"Homo sapiens"`). If not provided, `uniprot.taxId` must be given.
+#' @param uniprot.taxId Optional UniProt taxonomy ID for the species of interest.
+#' @param n.call Number of UniProt queries to make per batch (default is 99).
+#' @param uniprot.file Path to a saved local annotation file (default is `"AnnotationsTable.xlsx"`).
+#' @param shorten.gene.names Logical indicating whether long gene names should be shortened (default is `TRUE`).
+#' @param split.char Character used to split multiple accessions (default is `";"`).
+#' @param save.annotation Logical indicating whether to save the retrieved annotations to a file (default is `TRUE`).
+#' @param save.annotation.path Path to the directory where the annotation file should be saved.
+#' @param Data.path Path to the directory where data files are stored.
+#'
+#' @details The function handles different annotation sources:
+#' - `"uniprot.file"`: Loads annotations from a previously saved Excel file.
+#' - `"annotation.file"`: Reads annotations from a user-provided local file.
+#' - `"uniprot"`: Queries UniProt directly to fetch annotations.
+#'
+#' If the annotation source is `"uniprot"`, either `uniprot.taxId` or `uniprot.species.name` must be provided to ensure accurate species-specific annotation.
+#'
+#' The function can handle inputs where multiple accessions are present in a single cell (proteins groups), typically separated by `";"`, and can split them for more precise annotations.
+#'
+#' Gene names can be optionally shortened for better readability, especially for visualizations.
+#'
+#' @return A data table containing the original data with an additional `Genes` column with the annotated gene names.
 #'
 #' @examples
+#' # Example usage:
+#' dat <- data.table(Protein = c("P12345;Q67890", "P54321"))
+#' feature.annotation.source <- "uniprot"
+#' annotated_data <- callAnnotations(
+#'   dat = dat,
+#'   feature.annotation.source = feature.annotation.source,
+#'   uniprot.species.name = "Homo sapiens",
+#'   save.annotation = FALSE
+#' )
 #'
-#' # import UniProt.ws, vsvDialogs
+#' @import data.table
+#' @import UniProt.ws
+#' @importFrom readxl read_excel
+#' @export
 callAnnotations <- function(dat,
                            feature.annotation.source, # "uniprot.file" , "annotation.file"
-                           # if source "uniprot.web":
+                           # if source "uniprot":
                            uniprot.input = "Protein",
                            uniprot.output = "Genes",
                            uniprot.extra = NULL, # more parameters can be called from uniprot
@@ -43,7 +64,7 @@ callAnnotations <- function(dat,
                            save.annotation = TRUE,
                            save.annotation.path = Tables.path,
                            Data.path = Data.path) {
-  
+
 
   if (file.exists(feature.annotation.source)) src <- "annotation.file" else src <- "nofile"
 
@@ -78,22 +99,22 @@ callAnnotations <- function(dat,
 
 
   if (src == "psm.file") {
-    gnDT <- 
+    gnDT <-
       dat[, Genes := lapply(Descriptions, .psmDescGenes) %>% unlist ]
-    
+
         # desc.dt[, c(Protein, Description)] %>%
         #   .[, tmp := tstrsplit(Description, "GN=")[2]] %>%
         #   .[, Genes := tstrsplit(tmp, "PE=")[1]] %>%
         #   .[, Genes := gsub(" ", "", Genes)] %>%
         #   .[, c("tmp", "Description") := NULL]
   } else {
-    
+
     if (feature.annotation.source == "uniprot.file") {
       message(
         "When 'feature.annotation.source' set to 'uniprot.file', the last already-saved 'AnnotationsTable.xlsx' ",
         "file from the last call to uniprot website will be used for gene annotation."
       )
-      
+
       fl <- list.files(
         path = save.annotation.path,
         pattern = "AnnotationsTable.xlsx",
@@ -102,20 +123,20 @@ callAnnotations <- function(dat,
       )
       (fl <- file.info(fl, extra_cols = FALSE))
       fl <- file.path(rownames(fl[fl$ctime == max(fl$ctime), ]))
-      
+
       if (length(fl) != 0) {
         message("selected annotation file:\n", fl)
         gnDT <- as.data.table(read_excel(fl))
       } else {
         message("Local file for gene annotation not found. Gene names wil be called directly from uniprot!")
-        feature.annotation.source == "uniprot.web"
+        feature.annotation.source == "uniprot"
       }
       ## when reading annotations from a local file, there is no need to save the annotation file again!
       save.annotation <- FALSE
     }
-    
-    
-    if (feature.annotation.source == "uniprot.web") {
+
+
+    if (feature.annotation.source == "uniprot") {
       if (is.null(uniprot.taxId) & is.null(uniprot.species.name)) {
         stop(
           "Either of uniprot taxonomy ID or full uniprot species name",
@@ -124,7 +145,7 @@ callAnnotations <- function(dat,
       } else {
         if (is.null(uniprot.taxId) & !is.null(uniprot.species.name)) {
           taxonID <- availableUniprotSpecies(pattern = uniprot.species.name, n = Inf)
-          
+
           if (nrow(taxonID) > 1) {
             message("Multiple matches with selected Species name! Please enter taxonomy ID from the list below:")
             print(taxonID)
@@ -141,20 +162,20 @@ callAnnotations <- function(dat,
             uniprot.taxId <- taxonID$"taxon ID"
           }
         }
-        
+
         if (!is.null(uniprot.taxId) & is.null(uniprot.species.name)) {
           uniprot.species.name <- lookupUniprotSpeciesFromTaxId(uniprot.taxId)
         }
-        
+
         message(paste("\n\n** uniProt Species:", uniprot.species.name, "**"))
         message(paste("** uniProt taxonomy ID:", uniprot.taxId, "** \n\n"))
       }
-      
+
       message(paste0("calling annotation for ", uniqueN(allACCs), " accession codes ... "))
-      
+
       uniprot.taxId <- as.numeric(uniprot.taxId)
       uniprot.AnnotDB <- UniProt.ws(uniprot.taxId)
-      
+
       .calluniprot <- function(input, gnDT) {
         gnDT <- rbindlist(
           list(
@@ -169,17 +190,17 @@ callAnnotations <- function(dat,
           use.names = TRUE, fill = TRUE
         )
       }
-      
+
       allACCs <- allACCs$Protein
       gnDT <- data.table()
       div <- length(allACCs) %% n.call # maximum number of values to call is 100
       mod <- length(allACCs) %/% n.call
-      
+
       message(
         "Corresponding gene names of ", length(allACCs), " proteins will be called from uniprot in ",
         mod + 1, " iterations of maximum ", n.call, " calls."
       )
-      
+
       if (mod != 0) {
         for (ix in 1:mod) {
           print(ix)
@@ -194,13 +215,13 @@ callAnnotations <- function(dat,
         protlist <- allACCs
         gnDT <- .calluniprot(allACCs, gnDT)
       }
-      
+
       setnames(gnDT, uniprot.KEY, uniprot.input)
       if (toupper(uniprot.output) == "GENES") {
         gnDT <- gnDT[, Genes := tstrsplit(GENES, " ", fixed = TRUE)[1]][, -"GENES"] # first gene as the gene name
       }
     }
-    
+
   }
 
 
