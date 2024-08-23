@@ -1,7 +1,7 @@
 Package: MSqb2
 Type: Package
 Title: Differential expression analysis of MS-based Proteomics data
-Version: 0.1.4
+Version: 0.2.0
 Authors@R: person("Farhad", "Shakeri", 
                     role = c("aut", "cre"),
                     email = "farhad.shakeri@uni-bonn.de")
@@ -12,24 +12,22 @@ BuildVignettes: TRUE
 VignetteBuilder: knitr
 Depends:
     R (>= 4.1),
-    data.table,
-    magrittr
+    data.table
 Imports:
-    logger,
-    checkmate,
-    glue, 
     UniProt.ws,
     imputeLCMD, 
     msImpute,
     preprocessCore,
-    methods,
     limma,
     vsn,
     readxl,
-    openxlsx,
-    pbapply,
-    purrr,
-    grid
+    sva, 
+    glue, 
+    checkmate, 
+    magrittr,
+    logger,
+    splines,
+    openxlsx
 Suggests: 
     knitr,
     roxygen2,

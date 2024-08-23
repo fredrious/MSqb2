@@ -1,3 +1,35 @@
+#' Generate a Configuration Template for MSqb2 Analysis
+#'
+#' This function generates a configuration template for MSqb2 analysis, providing a set of predefined parameters that can be customized for specific mass spectrometry data processing tasks.
+#'
+#' @return The function does not return any value but sets up a configuration template with predefined parameters. This template includes various settings for filtering, normalization, summarization, fraction combination, batch effect removal, missing data imputation, annotation, contrast definition, and reformatting of input data.
+#'
+#' @details The `config_template` function initializes a set of configuration parameters for MSqb2 analysis, which can be modified by the user as needed. The parameters are grouped into several categories:
+#'
+#' \itemize{
+#'   \item **Filters**: Settings for filtering data based on quantification information, isolation interference, intensity thresholds, and more.
+#'   \item **Normalization**: Parameters for normalizing the data, including method selection and subset normalization.
+#'   \item **Summarization**: Options for summarizing data, including the method for median polishing.
+#'   \item **Fraction Combination**: Method for combining data across fractions.
+#'   \item **Batch Effect Removal**: Method for removing batch effects from the data.
+#'   \item **Missing Data Imputation**: Parameters for handling missing data.
+#'   \item **Metadata Filtering**: Options for filtering the dataset based on metadata.
+#'   \item **Annotation**: Source of feature annotation and the organism under study.
+#'   \item **Contrasts**: Parameters for defining contrasts in differential expression analysis, including pairwise contrasts and complex contrast definitions.
+#'   \item **Reformatting**: Options for reformatting input data, particularly for data generated from Proteome Discoverer.
+#' }
+#'
+#' The template is intended to be customized by users for their specific analysis needs, ensuring that all relevant parameters are set before running the MSqb2 pipeline.
+#'
+#' @examples
+#' \dontrun{
+#'   # Generate a configuration template
+#'   config_template()
+#'
+#'   # Users can modify the parameters as needed before running the analysis
+#' }
+#'
+#' @export
 config_template <- function() {
 ## start config (don't touch this!)
 
@@ -5,10 +37,9 @@ config_template <- function() {
   study.variable <- "Protein"
   filter.by.quaninfo <- "auto"                       # Character vector. Label(s) in the 'Quan Info' column (if provided) to be used to filter features. If set to 'auto' (default), all features whose 'Quan Info' labels are neither empty nor set to 'unique' will be filtered. If set to 'none', filter will not be applied.
   isolation.interference.cutoff <- 75                # Numeric or NULL. Permitted isolation interference. If numeric, features with an isolation interference larger than 'isolation.interference.cutoff' will be filtered. Default is 50, meaning that features with an isolation intereference larger than 50% will be filtered. If set to NULL or 100, the filter will not be applied.
-  multi.features.method <- "IonScore"                       # Character. The arguments sets the strategy how to deal with cases in which there are multiple intensity values available for a given feature per sample and run. Options are 'IonScore' (default), 'mean', 'median', 'max' and 'all'. For more details see the help of function 'MultiPSM'.
+  collapse_psm_method <- "IonScore"                       # Character. The arguments sets the strategy how to deal with cases in which there are multiple intensity values available for a given feature per sample and run. Options are 'IonScore' (default), 'mean', 'median', 'max' and 'all'. For more details see the help of function 'collapse_psm'.
   filter.singleshot.proteins <- "ByPeptide"           # Character. Remove single hit proteins. Options are 'ByPeptide' (default) and 'ByFeature'.
   min.intensity <- 0.01                         # Numeric. Intensity threshold below which the intensity values considered to be missing. Default is 0.01.
-  reference.channel <- NULL                                # Name of the reference channel in the metadata file. Only relevant for MS method TMT, and if a reference channel exists.
   #### --------------- Normalization
   normalization.method = "vsn"
   normalize.bySubset = NULL
@@ -53,10 +84,10 @@ config_template <- function() {
   desc.column <- "Master Protein Descriptions"
   contaminant.column <- "Contaminant"
   marked.as.column <-  "Marked as"
-  
+
 
 
   #### extra parameters ----
-  
+
 ## end config (don't touch this!)
 }

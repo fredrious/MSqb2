@@ -8,10 +8,9 @@
 #' @param study.variable A character string specifying the main study variable, either `"protein"` or `"peptide"`. Default is `"protein"`.
 #' @param filter.by.quaninfo A character string specifying how to filter data based on quantification information. Default is `"auto"`.
 #' @param isolation.interference.cutoff Numeric. The cutoff value for isolation interference, used to filter data. Default is `75`.
-#' @param multi.features.method A character string specifying the method for handling multiple features. Default is `"ionscore"`.
+#' @param collapse_psm_method A character string specifying the method for handling multiple features. Default is `"ionscore"`.
 #' @param filter.singleshot.proteins A character string specifying how to filter single-shot proteins. Options are `"ByPeptide"` or `"ByProtein"`. Default is `"ByPeptide"`.
 #' @param min.intensity Numeric. The minimum intensity threshold for filtering data. Default is `0.01`.
-#' @param reference.channel (depricated!) A character string specifying the reference channel for normalization, if applicable. Default is `NULL`.
 #' @param normalization.method A character string specifying the normalization method. Options include `"vsn"`, `"quantile"`, `"median"`, etc. Default is `"vsn"`.
 #' @param normalize.bySubset A character string referring to a column name or `NULL`. If specified, normalization will be performed by the subset defined by the labels in the specified data column. Default is `NULL`.
 #' @param summarization.method A character string specifying the method for summarizing data. Options include `"tmp"`, `"median"`, `"mean"` and `"sum"` Default is `"tmp"`.
@@ -20,7 +19,7 @@
 #' @param fraction.collapse.method A character string specifying the method for collapsing fractions. Options are `"MAXset"`, `"max"`, `"median"`, `"sum"`, `"single"`, `"multi"`. Default is `"MAXset"`.
 #' @param batch.corr.method A character string specifying the method for batch correction. Options include `"limma"`, `"svn"` and `"none"`. Default is `"none"`.
 #' @param na.imputation.method A character string specifying the method for imputing missing data. Options include all methods from packages `msImpute` and `imputeQRILC.` Default is `"none"`.
-#' @param filter.metadata A character string or `NULL`. If specified, metadata will be filtered accordingly. For details see the help of `filterMetadata()` function. Default is `NULL`.
+#' @param filter.metadata A character string or `NULL`. If specified, metadata will be filtered accordingly. For details see the help of `filter_metadata()` function. Default is `NULL`.
 #' @param feature.annotation.source A character string specifying the source of feature annotation. Options include `"psm.file"`, `"uniprot"`, `"uniprot.file"` and `"none"`. Default is `"psm.file"`.
 #' @param study.organism A character string specifying the organism studied. Only if `feature.annotation.source` is set to `"uniprot"`. Default is `NULL`.
 #' @param pairwise.contrasts Logical. If `TRUE`, pairwise contrasts are automatically generated. Default is `TRUE`.
@@ -46,7 +45,10 @@
 #' @return A list or object containing the configured parameters for MSqb2 analysis.
 #'
 #' @details The `msqb_config` function provides a comprehensive interface for configuring an MSqb2 analysis. Users can specify various filtering criteria, normalization methods, summarization techniques, and other parameters necessary for processing proteomics data. The function is highly customizable and can be used interactively or with predefined configurations.
-#'
+#' @importFrom glue glue glue_collapse
+#' @importFrom magrittr %>%
+#' @importFrom checkmate assertList assertCharacter assertLogical check_choice assertNumber check_character
+
 #'
 #' @export
 msqb_config <- function(build.para,
@@ -56,10 +58,9 @@ msqb_config <- function(build.para,
                         study.variable = "protein",
                         filter.by.quaninfo = "auto",
                         isolation.interference.cutoff = 75,
-                        multi.features.method = "ionscore",
+                        collapse_psm_method = "ionscore",
                         filter.singleshot.proteins = "ByPeptide",
                         min.intensity = 0.01,
-                        reference.channel = NULL,
                         #### --------------- Normalization
                         normalization.method = "vsn",
                         normalize.bySubset = NULL,
@@ -106,9 +107,9 @@ msqb_config <- function(build.para,
                         ...) {
 
    ## assert main input para
-   MSqb2:::.loggAssert(assertList(build.para))
-   MSqb2:::.loggAssert(assertCharacter(config.file, len = 1, null.ok = TRUE))
-   MSqb2:::.loggAssert(assertLogical(interactive, len = 1, null.ok = FALSE))
+   .loggAssert(assertList(build.para))
+   .loggAssert(assertCharacter(config.file, len = 1, null.ok = TRUE))
+   .loggAssert(assertLogical(interactive, len = 1, null.ok = FALSE))
 
 
    ## import args from build parameters
@@ -152,7 +153,7 @@ msqb_config <- function(build.para,
   #==================
   ## check if study must be done in Protein-level or in Peptide-level
   if (!isTRUE(check_choice(tolower(study.variable), c("protein", "peptide")))) {
-    MSqb2:::.logg(FATAL, glue("'study.variable' must either be 'Protein' (for protein-leve analysis) ",
+    .logg(FATAL, glue("'study.variable' must either be 'Protein' (for protein-leve analysis) ",
           "or 'Peptide' (for peptide-level analysis)."))
   }
 
@@ -161,19 +162,18 @@ msqb_config <- function(build.para,
 
 
   #==================
-  MSqb2:::.loggAssert(assertCharacter(filter.by.quaninfo))
-  MSqb2:::.loggAssert(assertNumber(isolation.interference.cutoff, null.ok = TRUE, lower = 0, upper = 100))
-  MSqb2:::.loggAssert(assertNumber(min.intensity, null.ok = TRUE, lower = 0))
-  MSqb2:::.loggAssert(assertCharacter(reference.channel, null.ok = TRUE))
+  .loggAssert(assertCharacter(filter.by.quaninfo))
+  .loggAssert(assertNumber(isolation.interference.cutoff, null.ok = TRUE, lower = 0, upper = 100))
+  .loggAssert(assertNumber(min.intensity, null.ok = TRUE, lower = 0))
 
 
-  if (!isTRUE(check_choice(tolower(multi.features.method), c('ionscore', 'mean', 'median', 'max', 'all')))) {
-     MSqb2:::.logg(FATAL, glue("'multi.features.method' must be one of the followings:\n",
+  if (!isTRUE(check_choice(tolower(collapse_psm_method), c('ionscore', 'mean', 'median', 'max', 'all')))) {
+     .logg(FATAL, glue("'collapse_psm_method' must be one of the followings:\n",
                        "{glue_collapse(c('IonScore', 'mean', 'median', 'max', 'all'), sep = ', ')} \n"))
   }
 
   if (!isTRUE(check_choice(tolower(filter.singleshot.proteins), c('bypeptide', 'byfeature')))) {
-     MSqb2:::.logg(FATAL, glue("'filter.singleshot.proteins' must be one of the followings:\n",
+     .logg(FATAL, glue("'filter.singleshot.proteins' must be one of the followings:\n",
                        "{glue_collapse(c('bypeptide', 'byfeature'), sep = ', ')} \n"))
   }
 
@@ -188,7 +188,7 @@ msqb_config <- function(build.para,
   fraction.methods <- c("MAXset", "max", "median", "sum", "single", "all", "multi")
   if (!exists("fraction.collapse.method") ||
       !toupper(fraction.collapse.method) %in% toupper(fraction.methods)) {
-      MSqb2:::.logg(WARN, glue(
+      .logg(WARN, glue(
         "Fraction Combination method must be one of the followings: \n",
         "{glue_collapse(fraction.methods, sep = ', ')} \n",
         "By default, 'fraction.collapse.method' will be set to 'MAXset'. \n",
@@ -206,7 +206,7 @@ msqb_config <- function(build.para,
   normalization.methods <- c("vsn", "median", "quantile")
   if (!exists("normalization.method") ||
       !toupper(normalization.method) %in% toupper(normalization.methods)) {
-       MSqb2:::.logg(WARN, glue(
+       .logg(WARN, glue(
         "Normalization method must be one of the followings: \n",
         "{glue_collapse(normalization.methods, sep = ', ')} \n",
         "By default, 'normalization.method' will be set to 'vsn'. \n",
@@ -216,7 +216,7 @@ msqb_config <- function(build.para,
   }
 
   if (!isTRUE(check_character(normalize.bySubset, null.ok = TRUE, len = 3))) {
-     MSqb2:::.logg(ERROR, glue("'normalize.bySubset' must be a list with three character elements:\n",
+     .logg(ERROR, glue("'normalize.bySubset' must be a list with three character elements:\n",
                        "Element 1 must be the name of a column in the dataset that is to be used ",
                        "for subsetting.\n",
                        "Element 2 is the character string in the selected column that is to be ",
@@ -227,7 +227,7 @@ msqb_config <- function(build.para,
 
   if (!is.null(normalize.bySubset) &
       !isTRUE(check_choice(normalize.bySubset[3],choices = c("exact", "partial") ))) {
-     MSqb2:::.logg(ERROR, glue("In 'normalize.bySubset', element 3 must either be 'exact', ",
+     .logg(ERROR, glue("In 'normalize.bySubset', element 3 must either be 'exact', ",
      "meaning that matching must be exact, or 'partial', which allows partial matching.\n"))
   }
 
@@ -254,7 +254,7 @@ msqb_config <- function(build.para,
   imp.methods <- c("knn", "QRILC", "MinDet", "MinProb", "Zero", "mle", "Hybrid", "none")
     if (!exists("na.imputation.method", mode = "character") ||
       !toupper(na.imputation.method) %in% toupper(imp.methods)) {
-         MSqb2:::.logg(WARN, glue(
+         .logg(WARN, glue(
           "Missing value imputation method must be one of the followings: \n",
           "(From 'imputeLCMD' package:) \n",
           "{glue_collapse(imp.methods, sep = ', ')} \n",
@@ -272,7 +272,7 @@ msqb_config <- function(build.para,
   if (!exists("advance.mode", mode = "logical" )) {
     conf.args2[["advance.mode"]] <- FALSE
   } else if (advance.mode & !exists("model.formula", mode = "character")) {
-    MSqb2:::.logg(ERROR, glue(
+    .logg(ERROR, glue(
        "advance.mode is TRUE.\n",
        "model.formula must be provided! example: '~ 0 + Condition'"))
     model.formula <- as.character(deparse(substitute(model.formula)))
@@ -286,7 +286,7 @@ msqb_config <- function(build.para,
   ## check model.formula (to be passed to limma) ----
   if (exists("model.formula") &
       !exists("advance.mode", mode = "logical"  )) {
-     MSqb2:::.logg(WARN, glue(
+     .logg(WARN, glue(
         "model.formula is provided. Automatic experimental-design detection will be deactivated.",
         "Analysis mode: advance"))
         conf.args2[["advance.mode"]] <- TRUE
@@ -304,7 +304,7 @@ msqb_config <- function(build.para,
   rmbtch.methods <- c("limma", "svn", "none")
   if (!exists("batch.corr.method") ||
       !toupper(batch.corr.method) %in% toupper(rmbtch.methods)) {
-       MSqb2:::.logg(WARN, glue(
+       .logg(WARN, glue(
         "Batch effect removal method must be one of the followings: \n",
         "{glue_collapse(rmbtch.methods, sep = ', ')} \n",
         "By default, 'batch.corr.method' will be set to 'none'."
@@ -314,7 +314,7 @@ msqb_config <- function(build.para,
 
 
   if (toupper(batch.corr.method) == "LIMMA") {
-     MSqb2:::.logg(TRACE, glue(
+     .logg(TRACE, glue(
         "\n!!! When batch correction method is set to 'LIMMA', the batch-corrected data will ",
         "only be used for data visualization, like in PCA and heatmaps. As recommended in the description of ",
         "the function 'removeBatchEffect' from LIMMA package, the batch factors will be included ",
@@ -327,7 +327,7 @@ msqb_config <- function(build.para,
   }
 
   # if (toupper(batch.corr.method) == "COMBAT") {
-  #      MSqb2:::.logg(WARN, glue(
+  #      .logg(WARN, glue(
   #       "For batch correction using method 'ComBat', no missing values in the data is ",
   #       "permitted. Missing value imputation (if not already set by user) will automatically ",
   #       "be performed in advanced, using imputation method 'KNN'!\n",
@@ -350,7 +350,7 @@ msqb_config <- function(build.para,
 
   if (!exists("summarization.method", mode = "character") ||
       !toupper(summarization.method) %in% toupper(pep2prot.methods)) {
-       MSqb2:::.logg(WARN, glue(
+       .logg(WARN, glue(
         "peptide to protein summarization method must be one of the followings: \n",
         "{glue_collapse(pep2prot.methods, sep = ', ')} \n",
         "By default, 'summarization.method' will be set to 'TMP' (Tukey Median Polish)."
@@ -361,7 +361,7 @@ msqb_config <- function(build.para,
   if (toupper(summarization.method) == "TMP") {
     if (!exists("medianpolish.method") ||
       !toupper(medianpolish.method) %in% toupper(c("column.eff", "residual"))) {
-       MSqb2:::.logg(WARN, glue(
+       .logg(WARN, glue(
           "When peptide to protein summarization method is set to 'TMP' (Tukey Median Polish), ",
           "parameter medianpolish.method must be set to either of 'column.eff' and 'residual'. ",
           "By default, 'medianpolish.method' will be set to 'column.eff'."
@@ -384,7 +384,7 @@ msqb_config <- function(build.para,
   ## check parameters for gene annotation  ----
   # check where to look for gene annotations
   # annt.src <- c("annotationdbi", "uniprot", "none")
-  annt.src <- c("psm.file", "annotationdbi", "uniprot", "uniprot.file", "none")
+  annt.src <- c("psm.file", "uniprot", "uniprot.file", "none")
   do.annotation <- TRUE # default
 
   if (isTRUE(check_choice(tolower(feature.annotation.source), annt.src))) {
@@ -395,7 +395,7 @@ msqb_config <- function(build.para,
 
       orgs <- c("human", "mouse", "yeast")
       if (!exists("study.organism")) {
-        MSqb2:::.logg(ERROR, glue("'feature.annotation.source' is set to {feature.annotation.source}.\n",
+        .logg(ERROR, glue("'feature.annotation.source' is set to {feature.annotation.source}.\n",
                                  "'study.organism' must also be defined and set to either of the followings:\n",
                                  "{glue_collapse(orgs, sep = ', ')}"))
       }
@@ -431,7 +431,7 @@ msqb_config <- function(build.para,
   #
   # # limma.trend
   # if (!exists("limma.trend", mode = "logical")) {
-  #   MSqb2:::.logg(WARN, glue(
+  #   .logg(WARN, glue(
   #     "Parameter 'limma.trend' for limma statistical test ",
   #     "must be a logical value. By default it will be set to FALSE."
   #   ))
@@ -440,7 +440,7 @@ msqb_config <- function(build.para,
 
   # pairwise.contrasts
   if (!exists("pairwise.contrasts", mode = "logical")) {
-    MSqb2:::.logg(WARN, glue(
+    .logg(WARN, glue(
       "Parameter 'pairwise.contrasts' for limma statistical test ",
       "must be a logical value. By default it will be set to TRUE."
     ))
@@ -454,7 +454,7 @@ msqb_config <- function(build.para,
   }
   if (!exists("manual.contrasts", mode = "character") &&
       !exists("manual.contrasts", mode = "NULL")) {
-    MSqb2:::.logg(WARN, glue(
+    .logg(WARN, glue(
       "Parameter 'manual.contrasts' (manually defined pairwise contrasts) must either be NULL or a ",
       "'character' vector. By default it will be set to NULL."
     ))
@@ -488,7 +488,7 @@ msqb_config <- function(build.para,
       code <- readLines(conf.path) %>% gsub("<-", "=", .)
       nl <- which(lapply(strsplit(gsub(" ", "", code), split = "=", ), "[", 1) == names(allargs)[[i]])
       if (length(nl) > 1) {
-        MSqb2:::.logg(FATAL, glue(
+        .logg(FATAL, glue(
           "Multiple matches for the followings parameters: \n",
           "{glue_collapse(names(allargs)[[i]], sep = ', ')} \n",
           "Edit the config file and rerun the msqb_config."
@@ -506,7 +506,7 @@ msqb_config <- function(build.para,
 
   if (interactive) {
 
-    MSqb2:::.logg(TRACE, glue(
+    .logg(TRACE, glue(
       "Do you want to view/edit the config file? \n",
       "(If yes, save changes after editting and before ",
       "starting the workflow."))

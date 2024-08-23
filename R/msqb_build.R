@@ -22,6 +22,8 @@
 #' @param add.date.tag logical. If TRUE, the date of the analysis will be added to the Analysis directory. Default is TRUE.
 #' @param interactive logical.
 #'
+#' @importFrom magrittr %>% %<>%
+#' @importFrom glue glue
 #' @return A list containing the paths and input parameters.
 #' @export
 #'
@@ -66,7 +68,7 @@ msqb_build <- function(measurements.file, # either psm file from ProteomDiscover
   # analysis logging
   log_file <<- file.path(Analysis.path, "_log_files",
                         paste0("_log_", format(Sys.time(), "%Y%m%d_%Hh%Mm%Ss"), ".log"))
-  MSqb2:::.logg(info, "Working dir:\n{getwd()}\nProject's name:\n{basename(getwd())}")
+  .logg(info, "Working dir:\n{getwd()}\nProject's name:\n{basename(getwd())}")
 
 
 
@@ -82,7 +84,7 @@ msqb_build <- function(measurements.file, # either psm file from ProteomDiscover
   for (ff in input.files) {
     if ((tolower(strsplit(ff[1], split = "\\.")[[1]][-1]) %in% c("xls", "xlsx"))) {
       if (is.null(paste0(ff, ".sheet"))) {
-         MSqb2:::.logg(WARN,
+         .logg(WARN,
             glue( "The sheet name of the input file\n {basename(ff)} \nnot provided. ",
                   "By default the first sheet will be read."))
         assign(paste0(ff, ".sheet"), 1)
@@ -95,7 +97,7 @@ msqb_build <- function(measurements.file, # either psm file from ProteomDiscover
 
   ## check measurements.file ----
   if (!tolower(strsplit(measurements.file[1], split = "\\.")[[1]][-1]) %in% c("xls", "xlsx", "txt")) {
-     MSqb2:::.logg(fatal,
+     .logg(fatal,
         glue("The Measurements file must either be from xlsx family or a txt file."))
   }
 

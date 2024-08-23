@@ -4,13 +4,13 @@
 \alias{int2fact}
 \title{integer to factor converter}
 \usage{
-int2fact(dt)
+int2fact(dat)
 }
 \arguments{
-\item{dt}{Input data of class data.table or data.frame.}
+\item{dat}{Input data of class data.table or data.frame.}
 }
 \value{
-The input data \code{dt} with columns of class integer converted to factor.
+The input data \code{dat} with columns of class integer converted to factor.
 }
 \description{
 Converts data.frame or data.table columns of class integer to factor.
@@ -23,5 +23,5 @@ int2fact(DT)
 sapply(DT, class)
 }
 \seealso{
-\code{\link{MSqb2::char2fact}}
+\code{\link{char2fact}}
 }

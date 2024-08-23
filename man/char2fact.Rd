@@ -4,22 +4,21 @@
 \alias{char2fact}
 \title{character to factor converter}
 \usage{
-char2fact(dt)
+char2fact(dat)
 }
 \arguments{
-\item{dt}{Input data of class data.table or data.frame.}
+\item{dat}{Input data of class data.table or data.frame.}
 }
 \value{
-The input data \code{dt} with columns of class character converted to factor.
+The input data \code{dat} with columns of class character converted to factor.
 }
 \description{
 Converts data.frame or data.table columns of class character to factor.
 }
 \examples{
 DT <- data.table(x = c(1., 2., 3.), y = c(4L, 5L, 6L), z = c("a", "b", "NA"))
-# DT <- data.frame(x = c(1.,2.), y = c(1L,2L), z = c("1","2"))
 sapply(DT, class)
-MSqb2::char2fact(DT)
+char2fact(DT)
 sapply(DT, class)
 }
 \seealso{

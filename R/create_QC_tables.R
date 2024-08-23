@@ -9,7 +9,7 @@
 #' @param metadata A `data.table` containing metadata associated with the mass spectrometry data. This table may include columns such as
 #'   `Pool`, `Channel`, and `Fraction`.
 #' @param ms.software A character string specifying the mass spectrometry software used, either of `"PD"` and `"MQ"`. Default is `"PD"` (Proteome Discoverer).
-#' @param save2file Logical. If `TRUE`, the QC tables are saved to an Excel file. Default is `TRUE`.
+#' @param save Logical. If `TRUE`, the QC tables are saved to an Excel file. Default is `TRUE`.
 #' @param Tables.path A character string specifying the directory where the output file will be saved. Default is the value of `Tables.path`.
 #'
 #' @return A list containing the QC summary tables generated during the analysis, which may include:
@@ -19,7 +19,7 @@
 #'   \item `"extMixFrac"`: External mix fractions data (if applicable).
 #' }
 #'
-#' @details The `create_QC_tables` function generates several summary tables that are essential for quality control in mass spectrometry-based
+#' @details The `create_qc_tables` function generates several summary tables that are essential for quality control in mass spectrometry-based
 #' proteomics studies:
 #'
 #' \itemize{
@@ -31,34 +31,12 @@
 #' results in an Excel file for easy review and further analysis.
 #'
 #' @importFrom openxlsx createWorkbook addWorksheet writeDataTable saveWorkbook
-#'
-#' @examples
-#' \dontrun{
-#'   ms_data <- data.table(
-#'     Feature = c("F1", "F2", "F3", "F4"),
-#'     Protein = c("P1", "P2", "P3", "P4"),
-#'     Peptide = c("Pep1", "Pep2", "Pep3", "Pep4"),
-#'     Pool = c("Pool1", "Pool2", "Pool1", "Pool2"),
-#'     Channel = c("Ch1", "Ch2", "Ch3", "Ch4"),
-#'     Fraction = c("Frac1", "Frac2", "Frac1", "Frac2"),
-#'     Intensity = c(100, 200, 150, 250)
-#'   )
-#'
-#'   metadata <- data.table(
-#'     SampleID = c("S1", "S2", "S3", "S4"),
-#'     Pool = c("Pool1", "Pool2", "Pool1", "Pool2"),
-#'     Channel = c("Ch1", "Ch2", "Ch3", "Ch4"),
-#'     Fraction = c("Frac1", "Frac2", "Frac1", "Frac2")
-#'   )
-#'
-#'   qc_tables <- create_QC_tables(dat = ms_data, metadata = metadata, ms.software = "PD", Tables.path = "output_path")
-#' }
-#'
+#' @importFrom magrittr %>%
 #' @export
-create_QC_tables <- function(dat = dat,
+create_qc_tables <- function(dat = dat,
                        metadata = metadata,
                        ms.software = "PD",
-                       save2file = TRUE,
+                       save = TRUE,
                        Tables.path = Tables.path) {
   if (ms.software == "PD" & MSmethod %in% c("TMT", "LFQ")) {
 
@@ -104,7 +82,7 @@ create_QC_tables <- function(dat = dat,
     }
   })
 
-  if (save2file) {
+  if (save) {
     saveWorkbook(swb, file = file.path(Tables.path, "DataSummary.xlsx"), overwrite = TRUE)
     message("\n\nA summary of the data (basic statistics, missingnes, ...) was saved in the following path:")
     message(file.path(Tables.path, "DataSummary.xlsx"))
@@ -123,7 +101,7 @@ create_QC_tables <- function(dat = dat,
     names(MissingPerFracChnl.w)[.] %>%
     MissingPerFracChnl.w[, (.) := lapply(.SD, function(x) as.numeric(x)), .SDcols = .] %>%
     melt.data.table(., id.vars = smry.col, variable.factor = TRUE) %>%
-    MSqb2::char2fact(.)
+    char2fact(.)
 
 
   MissingPerFracChnl <-
@@ -143,7 +121,7 @@ create_QC_tables <- function(dat = dat,
     PSMsperFraction <- multFrac[, .N, by = list(cnt, Pool)] # as.data.table(table(multFrac$cnt))
     PSMsperFraction[, perc := round(N / sum(N), 4) * 100, by = Pool]
     PSMsperFraction[, txt := paste0("#", N, "\n", perc, "%")]
-    MSqb2::char2fact(dat)
+    char2fact(dat)
     int2fact(dat)
     PSMsperFraction$N <- as.numeric(PSMsperFraction$N)
     PSMsperFraction <- PSMsperFraction[order(Pool, cnt)]

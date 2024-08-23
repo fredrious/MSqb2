@@ -52,42 +52,15 @@
 #' This function is suitable for both differential expression analysis in standard proteomics experiments and more complex designs involving time courses or technical replicates.
 #' When working with experiments that have potential batch effects, users can incorporate surrogate variable analysis (`sva.obj`) to correct for these.
 #'
+#' @import data.table magrittr
 #' @importFrom limma lmFit makeContrasts eBayes duplicateCorrelation contrasts.fit
 #' @importFrom splines ns
 #' @importFrom stats model.matrix as.formula
 #' @importFrom glue glue
+#' @importFrom magrittr %>% %<>%
 #'
 #' @export
 DE_stat_func <- function(dat,
-                      sample = "SampleID",
-                      variable = "Protein",
-                      value = "Abundance",
-                      model.formula = "~ 0 + Condition",
-                      sva.obj = NULL,
-                      techrep = NULL,
-                      limma.trend = TRUE,
-                      limma.robust = TRUE,
-                      limma.winsor.tail.p = FALSE,
-                      time.course = FALSE,
-                      spline.df = 4,
-                      removeTotalMissing = TRUE,
-                      pairwise.contrasts = TRUE,
-                      pairwise.denominator = c("wt", "wildtype", "wild-type", "cntrl", "control", "ctl", "untreated"),
-                      manual.contrasts = NULL,
-                      choose.contrasts = FALSE,
-                      make.complex.contrasts = FALSE,
-                      blocking.parameter = NULL, # column corresponding to technical replicate
-                      reverse.contrasts = FALSE,
-                      showWarnings = FALSE,
-                      prefix = NULL,
-                      suffix = NULL,
-                      rmSingleShotProteins = TRUE,
-                      add.vs.inContrast = TRUE,
-                      path = getwd(), ...) {
-  # function body...
-}
-
-DE_stat_func <- function(data,
                      sample = "SampleID",
                      variable = "Protein",
                      value = "Abundance",
@@ -133,12 +106,12 @@ DE_stat_func <- function(data,
   repeated.measures <- FALSE
 
 
-  if (rmSingleShotProteins & "Peptide.count" %in% names(data)) data <- data[Peptide.count != 1, ]
+  if (rmSingleShotProteins & "Peptide.count" %in% names(dat)) dat <- dat[Peptide.count != 1, ]
 
   ## check if data contains techrep.
   ## If it does, force it to be used as blocking factor
   if (!is.null(techrep)) {
-    if (techrep %in% names(data)) {
+    if (techrep %in% names(dat)) {
       message(
         "Data contains technical replicates. ",
         "These will be passed to LIMMA as 'blocking' parameters!"
@@ -181,7 +154,7 @@ DE_stat_func <- function(data,
   # fit parameters
   fit.para <- c(all.vars(as.formula(model.formula), unique = TRUE), blocking.parameter)
 
-  if (any(!fit.para %in% names(data))) {
+  if (any(!fit.para %in% names(dat))) {
     stop(
       "Some parameters used in design formula not match the ",
       "column names of input data!\n", model.formula
@@ -189,7 +162,7 @@ DE_stat_func <- function(data,
   }
 
   # make reference (target) table
-  reftb <- data[, c(..sample , ..fit.para)] %>% unique %>% setorderv(., fit.para)
+  reftb <- dat[, c(..sample , ..fit.para)] %>% unique %>% setorderv(., fit.para)
 
   if (any(apply(reftb, 2, uniqueN) == 1)) {
     stop(
@@ -203,33 +176,32 @@ DE_stat_func <- function(data,
   ############################################
   # time course analysis (spline regression limma)
   if (time.course) {
-    if (!"time" %in% tolower(names(data))) {
-      MSqb2:::.logg(FATAL, glue("'time.course' is set to TRUE but column 'time' does not exist in metadata. ",
+    if (!"time" %in% tolower(names(dat))) {
+      .logg(FATAL, glue("'time.course' is set to TRUE but column 'time' does not exist in metadata. ",
                                "Fitting data considering many time points per group can not be performed!"))
     }
 
 
     if (pairwise.contrasts |  !is.null(manual.contrasts) | make.complex.contrasts) {
-      MSqb2:::.logg(WARN, glue("No pairwise contrast will be generated in time course analysis."))
+      .logg(WARN, glue("No pairwise contrast will be generated in time course analysis."))
       pairwise.contrasts <- make.complex.contrasts <- add.vs.inContrast <- FALSE
       manual.contrasts <- NULL
     }
     cnts <- NULL # there won't be any contrast
 
 
-    time.para <- grep("time", names(data), ignore.case = TRUE, value = TRUE)
-    ctime <- data[, c(..sample , ..fit.para, ..time.para)] %>% unique %>% setorderv(., fit.para) %>%
+    time.para <- grep("time", names(dat), ignore.case = TRUE, value = TRUE)
+    ctime <- dat[, c(..sample , ..fit.para, ..time.para)] %>% unique %>% setorderv(., fit.para) %>%
       .[, ..time.para] %>% unlist(., use.names = FALSE) %>% as.factor() %>% as.numeric()
 
     # if time column is not numeric, try to convert it to numeric. If not possible, stop!
     # if (!is.numeric(ctime)) {
-    #   MSqb2:::.logg(FATAL, glue("In 'time course' analysis, column {time.para} must be numeric. ",
+    #   .logg(FATAL, glue("In 'time course' analysis, column {time.para} must be numeric. ",
     #                            "It is not and can not be converted to class numeric!"))
     # }
 
 
     # fit spline: look at Limma guide, section 9.6.2 --> Many time points
-    library(splines)
     Bspline.mat <- splines::ns(ctime, df = spline.df)
     # update model formula
     model.formula %<>% gsub(fit.para[1], glue(fit.para[1], " * Bspline.mat"), .)
@@ -240,7 +212,7 @@ DE_stat_func <- function(data,
   ############################################
   # define design matrix
   design.mat <- model.matrix(as.formula(model.formula),
-                             data = data.frame(reftb[, !"i"], row.names = sample))
+                             dat = data.frame(reftb[, !"i"], row.names = sample))
 
 
 
@@ -260,7 +232,7 @@ DE_stat_func <- function(data,
   # clean column names in design matrix
   colnames(design.mat) <- gsub(paste0("^", fit.para[1]), "", colnames(design.mat))
   cols <- c(sample, fit.para, variable, value)
-  dtl <- data[, ..cols] %>% unique %>% setorderv(., fit.para)
+  dtl <- dat[, ..cols] %>% unique %>% setorderv(., fit.para)
   dtw <- dcast.data.table(dtl, get(variable) ~ get(sample), value.var = value)
   mat <- as.matrix(dtw[, unlist(unique(dtl[, ..sample])), with = FALSE])
   rownames(mat) <- dtw[, variable]
@@ -313,7 +285,7 @@ DE_stat_func <- function(data,
     para <- fit.para[1]
     para.lvl <- levels(unlist(dtl[, ..para]))
     if (uniqueN(para.lvl) == 1) {
-      MSqb2:::.logg(ERROR, glue("Parameter {para} has 1 level in the design matrix. No contrast can be defined!"))
+      .logg(ERROR, glue("Parameter {para} has 1 level in the design matrix. No contrast can be defined!"))
     } else {
       prs <- combn(para.lvl, 2)
     }
@@ -491,11 +463,11 @@ DE_stat_func <- function(data,
   if (!time.course) fit_eb <- contrasts.fit(fit0, as.matrix(cnts)) else fit_eb <- fit0
 
   if (!is.logical(limma.trend)) {
-    if (!limma.trend %in% names(data)) {
-      MSqb2:::.logg(level = "WARN", msg = "limma.trend must either be logical or either of 'PSM.count' and 'PSM.mean'. By default it will be set to TRUE")
+    if (!limma.trend %in% names(dat)) {
+      .logg(level = "WARN", msg = "limma.trend must either be logical or either of 'PSM.count' and 'PSM.mean'. By default it will be set to TRUE")
       limma.trend <- TRUE
     } else {
-      PSM.df <- unique(data[, c(variable, limma.trend), with = FALSE]) %>% data.frame(., row.names = variable)
+      PSM.df <- unique(dat[, c(variable, limma.trend), with = FALSE]) %>% data.frame(., row.names = variable)
       limma.trend <- PSM.df[rownames(fit_eb$coefficients), limma.trend] %>% log2()
     }
   }

@@ -1,14 +1,23 @@
-
-
-#' Title
+#' MSqb Workflow for Proteomics Data Analysis
 #'
-#' @param config.para
-#' @param config.file
-#' @param build.para
+#' This function orchestrates the entire workflow for MS proteomics data analysis, including data reformatting, normalization, batch effect removal, protein summarization, differential expression analysis, and more.
 #'
-#' @return
+#' @param build.para A list of parameters required to build the workflow environment (see `MSqb_build()` function).
+#' @param config.para A list of configuration parameters for the workflow. If NULL, these will be read from the `config.file` (see `MSqb_config()` function).
+#' @param config.file The path to the configuration file. This file will be used if `config.para` is not provided.
+#' @param ... Additional parameters passed to internal functions.
+#'
+#' @return An environment containing the results of the workflow, including processed data tables and statistical results.
+#' @export
+#' @importFrom glue glue
 #'
 #' @examples
+#' \dontrun{
+#' result_env <- msqb_workflow(
+#'   build.para = list(param1 = value1, param2 = value2),
+#'   config.file = "config.R"
+#' )
+#' }
 msqb_workflow <- function(build.para,
                           config.para = NULL,
                           config.file = NULL,
@@ -40,9 +49,9 @@ msqb_workflow <- function(build.para,
    #### ii) read metadata ----
    metadata0 <- read.file(file = metadata.file, sheet = metadata.file.sheet) %>% unique()
    ## Add BioRep if not already in the metadata
-   exp.design <- check.design(metadata0)
+   exp.design <- check_design(metadata0)
    ## check if parameters in the model formula match column names of the metadata
-   model.formula <- MSqb2:::.match_ModelFormula_metadata(metadata0, model.formula)
+   model.formula <- .match_ModelFormula_metadata(metadata0, model.formula)
 
 
 
@@ -63,7 +72,7 @@ msqb_workflow <- function(build.para,
        msDT.dummy[, .(filename.column = uniqueN(get(filename.column))), by = FileID.column] %>%
           { .$filename.column > 1 } %>%
           any(.) %>%
-          { if(.) { MSqb2:::.logg(ERROR, glue(
+          { if(.) { .logg(ERROR, glue(
              "Some {FileID.column}s match by multiple raw files! ",
              "In case of multiple input files, make sure that the {FileID.column}s are unique!"))
              }
@@ -76,7 +85,7 @@ msqb_workflow <- function(build.para,
     ## 1. Reformat data ----
     ## !output is a list!
     ## Two objects will be exported to the Global env.: ms.software and MSmethod
-    msDT.dummy <- reformatRAW(
+    msDT.dummy <- reformat_PD_data(
       feat.dt = msDT.dummy,
       metadata = metadata0,
       protein.column = protein.column,
@@ -87,7 +96,6 @@ msqb_workflow <- function(build.para,
       quaninfo.column = quaninfo.column,
       isolation.interference.column = isolation.interference.column,
       abundance.columns = abundance.columns,
-      reference.channel = reference.channel,
       ms.software = ms.software,
       ion.score.column = ion.score.column,
       desc.column = desc.column,
@@ -112,7 +120,7 @@ msqb_workflow <- function(build.para,
   ## if any sample is to be removed! (a channel, replicate or fraction)
   ## This is usually done after visual inspection of the plots after the first run.
   if (!is.null(filter.metadata)) {
-    metadata <- filterMetadata(metadata, filters = eval(filter.metadata))
+    metadata <- filter_metadata(metadata, filters = eval(filter.metadata))
     msDT <- merge(msDT, metadata, by = names(metadata), all.y = TRUE)
   }
   # store in res environemnt
@@ -125,16 +133,16 @@ msqb_workflow <- function(build.para,
   ## ....................
   ## 3. Filter data ----
   ## Two objects will be added to res.env: BasicStats and Isol.Interference
-  msDT <- filterFeatLevelData(
-    msd = msDT,
+  msDT <- clean_feature_data(
+    dat = msDT,
     metadata = metadata,
     filter.by.quaninfo = filter.by.quaninfo,
     isolation.interference.cutoff = isolation.interference.cutoff,
-    multi.features.method = multi.features.method,
+    collapse_psm_method = collapse_psm_method,
     min.intensity = min.intensity
   )
-  
-  
+
+
   # store in res environemnt
   list2env(list(
     "FeatureDT.cleaned" = msDT$msDT,
@@ -150,7 +158,7 @@ msqb_workflow <- function(build.para,
 
   ## .........................................
   ## 4. Make summary tables for qc plots ----
-  QCtables <- create_QC_tables(
+  QCtables <- mkQCtables(
     msDT = msDT,
     metadata = metadata,
     ms.software = ms.software,
@@ -167,8 +175,8 @@ msqb_workflow <- function(build.para,
   ## .............................
   ## 5. Fraction combination ----
   if ("Fraction" %in% names(msDT)) {
-    msDT <- collapseFractions(
-      dt = msDT,
+    msDT <- collapse_fractions(
+      dat = msDT,
       group = "Pool",
       method = fraction.collapse.method,
       path = Tables.path
@@ -179,15 +187,15 @@ msqb_workflow <- function(build.para,
     metadata <- metadata[, Filename := do.call(paste, c(.SD, sep = "_")), .SDcols = intersect(names(msDT), c("Pool", "Channel"))] %>% unique(.) %>% char2fact()
     msDT <- msDT[, Filename := do.call(paste, c(.SD, sep = "_")), .SDcols = intersect(names(msDT), c("Pool", "Channel"))] %>% unique(.)
   }
- 
+
 
 
 
 
   ## ......................
   ## 6. Normalization ----
-  msDT <- NormalizeData(
-    dt = msDT,
+  msDT <- normalise_data(
+    dat = msDT,
     method = normalization.method,
     val = "Intensity",
     calib = "affine", # if method vsn
@@ -205,8 +213,11 @@ msqb_workflow <- function(build.para,
   ## ............................
   ## 7. impute missing data ----
   if (na.imputation.method != "none" | toupper(batch.corr.method) == "COMBAT") {
-    msDT <- imputeNA(
+    msDT <- impute_missing_values(
       msDT,
+      val = "Abundance",
+      col.p = "Filename",
+      row.p = intersect(c("Protein", "Peptide", "Feature"), names(msDT)),
       na.imputation.method = na.imputation.method,
       hybrid.mar = "KNN", # if method "Hybrid"
       hybrid.mnar = "QRILC", # if method "Hybrid"
@@ -230,9 +241,9 @@ msqb_workflow <- function(build.para,
   ## 8. remove batch effect ----
   ## currently only limma
   if (batch.corr.method != "none") {
-    PeptideDT.batchCorrected <- rmBatchEffect(
-      dt = msDT,
-      pheno = metadata,
+    PeptideDT.batchCorrected <- remove_batch_effect(
+      dat = msDT,
+      metadt = metadata,
       batch.corr.method = batch.corr.method,
       val = "Abundance",
       model.formula = model.formula
@@ -253,15 +264,14 @@ msqb_workflow <- function(build.para,
 
   ## ......................
   ## 9. summarization ----
-  msDT <- Pep2Prot(
-    dw = msDT,
+  msDT <- protein_aggregation(
+    dat = msDT,
     summarization.method = summarization.method,
     medianpolish.method = medianpolish.method,
-    techrep = "TechRep",
     medianpolish.byPool = medianpolish.byPool,
     block = "Pool",
     var = "Abundance",
-    groupby = stringr::str_to_title(study.variable) ,
+    groupby = capitalize_first_char(study.variable) ,
     Tables.path = Tables.path
   )
 
@@ -275,7 +285,7 @@ msqb_workflow <- function(build.para,
 
 
   ## store PSM count per protein, to be passed to limma trend
-  msDT <- add.psm.count(msDT, param = study.variable) 
+  msDT <- add_psm_count(msDT, param = capitalize_first_char(study.variable))
   msDT <- merge(msDT, metadata, by = intersect(names(msDT),names(metadata)))
 
 
@@ -283,7 +293,7 @@ msqb_workflow <- function(build.para,
   ## 10. Gene annotation ----
   # if (do.annotation) {
   #
-  #   msDT <- callAnnotations(
+  #   msDT <- annotation_query(
   #     dat = msDT,
   #     feature.annotation.source = feature.annotation.source, # "uniprot", "uniprot.file", "annotation.file"
   #
@@ -316,15 +326,14 @@ msqb_workflow <- function(build.para,
   ## repeat summarization and annotation
   if (exists("PeptideDT.batchCorrected")) {
 
-    ProteinDT.batchCorrected <- Pep2Prot(
-      dw = PeptideDT.batchCorrected,
+    ProteinDT.batchCorrected <- protein_aggregation(
+      dat = PeptideDT.batchCorrected,
       summarization.method = summarization.method,
       medianpolish.method = medianpolish.method,
-      techrep = "TechRep",
       medianpolish.byPool = medianpolish.byPool,
       block = "Pool",
       var = "Abundance",
-      groupby = study.variable, #stringr::str_to_title(study.variable),
+      groupby = capitalize_first_char(study.variable),
       Tables.path = Tables.path
     )
     ProteinDT.batchCorrected <- merge(ProteinDT.batchCorrected,
@@ -349,14 +358,14 @@ msqb_workflow <- function(build.para,
 
 
 
-  
+
   ## ...................
   ## 11. fit Limma ----
   limma.fit <- DE_stat_func(
-    data = msDT,
+    dat = msDT,
     sample = "Filename",
     model.formula = model.formula, # model.formula,
-    variable = study.variable,
+    variable = capitalize_first_char(study.variable),
     value = "Abundance",
     techrep = "TechRep",
     pairwise.contrasts = pairwise.contrasts,
@@ -394,14 +403,14 @@ msqb_workflow <- function(build.para,
 
   ## ...........................
   ## 12. generate topTable ----
-  statLists <- StatTable(
+  statLists <- DE_stat_table(
     fit_eb = limma.fit,
-    dt = msDT,
+    dat = msDT,
     variable = "Protein",
     path = Tables.path,
     adjust = "BH",
     Gene.name = ifelse("Genes" %in% names(msDT), "Genes", "Protein"),
-    save2file = TRUE,
+    save = TRUE,
     file.name = "limma.stat_output"
   )
   # store in res environemnt

@@ -2,13 +2,30 @@
 % Please edit documentation in R/msqb_workflow.R
 \name{msqb_workflow}
 \alias{msqb_workflow}
-\title{Title}
+\title{MSqb Workflow for Proteomics Data Analysis}
 \usage{
 msqb_workflow(build.para, config.para = NULL, config.file = NULL, ...)
 }
 \arguments{
-\item{build.para}{}
+\item{build.para}{A list of parameters required to build the workflow environment (see \code{MSqb_build()} function).}
+
+\item{config.para}{A list of configuration parameters for the workflow. If NULL, these will be read from the \code{config.file} (see \code{MSqb_config()} function).}
+
+\item{config.file}{The path to the configuration file. This file will be used if \code{config.para} is not provided.}
+
+\item{...}{Additional parameters passed to internal functions.}
+}
+\value{
+An environment containing the results of the workflow, including processed data tables and statistical results.
 }
 \description{
-Title
+This function orchestrates the entire workflow for MS proteomics data analysis, including data reformatting, normalization, batch effect removal, protein summarization, differential expression analysis, and more.
+}
+\examples{
+\dontrun{
+result_env <- msqb_workflow(
+  build.para = list(param1 = value1, param2 = value2),
+  config.file = "config.R"
+)
+}
 }

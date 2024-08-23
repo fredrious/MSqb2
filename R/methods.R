@@ -130,28 +130,14 @@ expandList <- function(x) {
 #' }
 #'
 #' @return NULL
-#' @examples
-#' # Example usage:
-#' # Assuming these variables are defined and imported from the parent environment:
-#' measurements.file <- "data.csv"
-#' metadata.file <- "metadata.csv"
-#' measurements.file.sheet <- "Sheet1"
-#' metadata.file.sheet <- "Sheet1"
-#' ms.software <- "MQ"
-#' analysis.name <- "Analysis1"
-#' prefix <- "prefix_"
-#' suffix <- "suffix_"
-#' add.date.tag <- TRUE
 #'
-#' .checkBuildArgs()
-#'
-#' @import checkmate
+#' @importFrom checkmate assertCharacter assert assertLogical checkChoice
 #' @export
 .checkBuildArgs <- function() {
   impTopEnv() # import all objects from 1 env backward (parent.frame)
 
-  MSqb2:::.loggAssert(assertCharacter(measurements.file))
-  MSqb2:::.loggAssert(assertCharacter(metadata.file, len = 1))
+  .loggAssert(assertCharacter(measurements.file))
+  .loggAssert(assertCharacter(metadata.file, len = 1))
 
   assert(checkCharacter(measurements.file.sheet, len = 1),
     checkInt(measurements.file.sheet, null.ok = TRUE),
@@ -165,12 +151,12 @@ expandList <- function(x) {
 
   assert(checkChoice(ms.software, c("MQ", "PD")))
 
-  MSqb2:::.loggAssert(assertCharacter(analysis.name, len = 1, null.ok = TRUE))
-  MSqb2:::.loggAssert(assertCharacter(ms.software, len = 1, null.ok = FALSE))
-  MSqb2:::.loggAssert(assertCharacter(prefix, len = 1, null.ok = TRUE))
-  MSqb2:::.loggAssert(assertCharacter(suffix, len = 1, null.ok = TRUE))
+  .loggAssert(assertCharacter(analysis.name, len = 1, null.ok = TRUE))
+  .loggAssert(assertCharacter(ms.software, len = 1, null.ok = FALSE))
+  .loggAssert(assertCharacter(prefix, len = 1, null.ok = TRUE))
+  .loggAssert(assertCharacter(suffix, len = 1, null.ok = TRUE))
 
-  MSqb2:::.loggAssert(assertLogical(add.date.tag))
+  .loggAssert(assertLogical(add.date.tag))
 }
 
 
@@ -187,7 +173,9 @@ expandList <- function(x) {
 #' @param msg The message to log.
 #'
 #' @return NULL
-#' @import logger magrittr
+#' @importFrom logger layout_glue_generator log_threshold log_appender log_layout colorize_by_log_level
+#' @importFrom magrittr %>%
+#' @importFrom glue glue
 #' @export
 .logg <- function(level, msg) {
   # define/call log file
@@ -211,8 +199,8 @@ expandList <- function(x) {
   # I defined therefore two separate logging layout for console and file.
   # print in file:
   logger.file <-
-    layout_glue_generator(
-      format = "---\n••• MSqb {level}:\n{msg}\n"
+    (
+      format = "---\n*** MSqb {level}:\n{msg}\n"
     )
   log_appender(appender_file(log_file, ))
   log_layout(logger.file)
@@ -221,7 +209,7 @@ expandList <- function(x) {
   # print in console:
   logger.console <-
     layout_glue_generator(
-      format = '{colorize_by_log_level(paste("---\n••• MSqb", level, ":\n", msg), levelr)}\n'
+      format = '{colorize_by_log_level(paste("---\n*** MSqb", level, ":\n", msg), levelr)}\n'
     )
   log_appender(appender_console)
   log_layout(logger.console)
@@ -256,6 +244,7 @@ expandList <- function(x) {
 #'
 #' @return NULL
 #' @examples
+#' \dontrun{
 #' # Create subdirectories with specific naming components
 #' .mk.dir(
 #'   path = tempdir(),
@@ -269,6 +258,7 @@ expandList <- function(x) {
 #' # Check the paths assigned to global environment variables
 #' print(data.path)
 #' print(results.path)
+#' }
 #'
 #' @export
 .mk.dir <- function(path, sub.dir, prefix = NULL, analysis.name = NULL,
@@ -307,7 +297,11 @@ expandList <- function(x) {
 #' appends the file paths to the `output` list and updates the environment with `output`, `input`, and `toData`.
 #'
 #' @return NULL
+#'
+#' @importFrom glue glue glue_collapse
+
 #' @examples
+#' \dontrun{
 #' # Example usage
 #' input_patterns <- list(pattern1 = "file1.csv", pattern2 = "file2.csv")
 #' output_list <- list()
@@ -322,11 +316,9 @@ expandList <- function(x) {
 #'
 #' # Check the results in the environment
 #' print(output_list)
-#'
-#' @import glue
+#' }
 
 .find.file <- function(input, output, toData, where) {
-  # input %<>% .[setdiff(names(input), names(output))] ## check this !!!
 
   fls <- lapply(input, function(x) {
     grep(
@@ -342,7 +334,7 @@ expandList <- function(x) {
   fls <- fls[which(!sapply(fls, function(x) identical(x, character(0))))]
   mx <- which(sapply(fls, length) > 1)
   if (length(mx) > 0) {
-    MSqb2:::.logg(
+    .logg(
       level = FATAL,
       glue(
         "Multiple matches were found for the following input file(s):\n",
@@ -386,12 +378,16 @@ expandList <- function(x) {
 #' If `toData` is `TRUE` and `interactive` is `TRUE`, the user will be prompted to copy missing files to the `dpth` directory.
 #'
 #' @return A named list of files with their paths. If files were copied, their paths in the `dpth` directory are returned.
+#' @importFrom magrittr %>% %<>%
+#' @importFrom glue glue glue_collapse
+#'
 #' @examples
+#' \dontrun{
 #' # Example usage
 #' input_files <- list(file1 = "path/to/file1.csv", file2 = "path/to/file2.csv")
 #' output_files <- .check.file(input = input_files, dpth = tempdir(), toData = TRUE, interactive = TRUE)
 #' print(output_files)
-#'
+#' }
 .check.file <- function(input, dpth = Data.path, toData = FALSE, interactive = TRUE) {
   input %<>% lapply(., function(x) !is.null(x)) %>%
     unlist() %>%
@@ -422,7 +418,7 @@ expandList <- function(x) {
     nafile <- setdiff(names(input), names(output)) # the file that was not found!
 
     if (basename(dpth) != "Scripts") {
-      MSqb2:::.logg(
+      .logg(
         level = FATAL,
         glue(
           "Following file(s) could not be found in the working directory.\n",
@@ -432,7 +428,7 @@ expandList <- function(x) {
         )
       )
     } else {
-      MSqb2:::.logg(
+      .logg(
         level = WARN,
         glue(
           "The following config file does not exist or could not be found in the working ",
@@ -450,7 +446,7 @@ expandList <- function(x) {
   if (toData) {
     idx <- which(lapply(output, dirname) != dpth)
     if (length(idx) > 0 & interactive) {
-      MSqb2:::.logg(TRACE, glue(
+      .logg(TRACE, glue(
         "Input files are recommended (but not required!) to be stored ",
         "in the {basename(dpth)} directory: \n{dpth} \n\n",
         "Do you want to copy the following files in the 'Data' directory?\n\n",
@@ -461,7 +457,7 @@ expandList <- function(x) {
 
       if (cp.data == "yes") {
         lapply(output[names(idx)], function(x) file.copy(from = x, to = dpth, overwrite = FALSE))
-        MSqb2:::.logg(SUCCESS, glue(
+        .logg(SUCCESS, glue(
           "Following file(s) were copied to '{basename(dpth)}' sub-directory:\n",
           "{glue_collapse(output[names(idx)], sep = '\n')}\n",
           "\nThese files will be utilised throughout the workflow and in the future analysis.\n"
@@ -490,26 +486,28 @@ expandList <- function(x) {
 #' @details
 #' The function checks the file extension to determine whether it should use `readxl::read_excel` for Excel files or
 #' `data.table::fread` for text files. After reading the data, the function converts it to a `data.table` and applies
-#' `MSqb2::char2fact` to ensure that character columns are converted to factors.
+#' `char2fact` to ensure that character columns are converted to factors.
 #'
 #' @return A `data.table` object containing the data read from the file.
 #' @examples
+#' \dontrun{
 #' # Example usage with a tab-delimited file
 #' data <- read.file("path/to/datafile.txt")
 #'
 #' # Example usage with an Excel file
 #' data <- read.file("path/to/datafile.xlsx", sheet = 2)
+#' }
 #'
-#' @import readxl
+#' @importFrom readxl read_excel
 #' @export
 read.file <- function(file, sheet = 1) {
   ext <- toupper(strsplit2(file, "\\.")[-1])
   if (any(ext %in% c("XLSX", "XLS"))) {
-    dt <- readxl::read_excel(file, sheet = sheet) %>% as.data.table(.)
+    dat <- readxl::read_excel(file, sheet = sheet) %>% as.data.table(.)
   } else {
-    dt <- fread(file, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
+    dat <- fread(file, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
   }
-  MSqb2::char2fact(dt) %>%
+  char2fact(dat) %>%
     return()
 }
 
@@ -535,7 +533,8 @@ read.file <- function(file, sheet = 1) {
 #' its content in the parent environment.
 #'
 #' @return A character string specifying the path to the imported or generated configuration file.
-#' @import glue
+#' @importFrom glue glue glue_collapse
+#'
 .importConfigfile <- function(conf.fl, Scripts.path, analysis.name,
                               add.date.tag, whichConf, conf.args) {
   if (!is.null(conf.fl)) conf.pth <- .check.file(conf.fl, dpth = Scripts.path, toData = FALSE)
@@ -551,12 +550,12 @@ read.file <- function(file, sheet = 1) {
       )
     )
     Sys.sleep(0.2)
-    makeConfigFile(conf.file = conf.pth, whichConf = whichConf)
+    create_config_file(conf.file = conf.pth, whichConf = whichConf)
   }
 
   suppressWarnings(
     if (length(within(conf.args, rm(interactive))) > 0) {
-      MSqb2:::.logg(
+      .logg(
         TRACE,
         glue(
           "Parameters manually passed to the msqb_config function will substitude ",
@@ -567,7 +566,7 @@ read.file <- function(file, sheet = 1) {
     }
   )
 
-  MSqb2:::.logg(INFO, glue("Config parameters are stored under: {conf.pth}"))
+  .logg(INFO, glue("Config parameters are stored under: {conf.pth}"))
   conf.pth <- unlist(conf.pth)
   eval(parse(text = readLines(conf.pth)), envir = parent.frame())
   return(conf.pth)
@@ -591,6 +590,9 @@ read.file <- function(file, sheet = 1) {
 #' `.logg` function at the error level.
 #'
 #' @return The function does not return a value. It stops execution and logs an error if any assertion fails.
+#' @importFrom checkmate makeAssertCollection
+#' @importFrom logger skip_formatter
+#'
 .loggAssert <- function(xpr) {
   impTopEnv()
   .collAssert <- checkmate::makeAssertCollection()
@@ -600,7 +602,7 @@ read.file <- function(file, sheet = 1) {
   xpr <- paste0(substr(xpr, 1, nchar(xpr) - 1), ",add=.collAssert)")
   eval(parse(text = xpr))
   if (!.collAssert$isEmpty()) {
-    MSqb2:::.logg(error, skip_formatter(.collAssert$getMessages()))
+    .logg(error, skip_formatter(.collAssert$getMessages()))
   }
 }
 
@@ -612,7 +614,7 @@ read.file <- function(file, sheet = 1) {
 #'
 #' Converts all factor columns in a data.table to character columns.
 #'
-#' @param dt A `data.table` object in which factor columns need to be converted to character columns.
+#' @param dat A `data.table` object in which factor columns need to be converted to character columns.
 #'
 #' @details
 #' The function identifies all columns in the `data.table` that are of type factor and converts them to character columns.
@@ -622,18 +624,41 @@ read.file <- function(file, sheet = 1) {
 #'
 #' @examples
 #' library(data.table)
-#' dt <- data.table(a = factor(c("x", "y", "z")), b = 1:3)
-#' dt <- fact2char(dt)
-#' str(dt) # 'a' column is now character
+#' dat <- data.table(a = factor(c("x", "y", "z")), b = 1:3)
+#' dat <- fact2char(dat)
+#' str(dat) # 'a' column is now character
 #'
 #' @export
-fact2char <- function(dt) {
-  changeCols <- c(names(Filter(is.factor, dt)))
+fact2char <- function(dat) {
+  changeCols <- c(names(Filter(is.factor, dat)))
   if (length(changeCols) > 0) {
-    dt[, (changeCols) := lapply(.SD, as.character), .SDcols = changeCols]
+    dat[, (changeCols) := lapply(.SD, as.character), .SDcols = changeCols]
   }
-  return(dt)
+  return(dat)
 }
+
+
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%
+#' Sort a character vector with numeric order
+#'
+#' This function sorts a character vector in a way that numbers within the strings are considered as numeric values during sorting.
+#'
+#' @param x A character vector to be sorted.
+#' @param decreasing Logical; if `TRUE`, the sort will be in decreasing order.
+#' @return A character vector sorted based on numeric values within the strings.
+#' @examples
+#' str_sort_numeric(c("file2.txt", "file10.txt", "file1.txt"))
+#' # Returns: "file1.txt" "file2.txt" "file10.txt"
+#' @export
+str_sort_numeric <- function(x, decreasing = FALSE) {
+  numeric_sort <- function(v) {
+    as.numeric(gsub("\\D", "", v))
+  }
+  x[order(numeric_sort(x), x, decreasing = decreasing)]
+}
+
 
 
 
@@ -643,44 +668,44 @@ fact2char <- function(dt) {
 #'
 #' Converts data.frame or data.table columns of class character to factor.
 #'
-#' @param dt Input data of class data.table or data.frame.
-#' @return The input data \code{dt} with columns of class character converted to factor.
+#' @param dat Input data of class data.table or data.frame.
+#' @return The input data \code{dat} with columns of class character converted to factor.
 #' @seealso \code{\link{int2fact}}
 #' @examples
 #' DT <- data.table(x = c(1., 2., 3.), y = c(4L, 5L, 6L), z = c("a", "b", "NA"))
-#' # DT <- data.frame(x = c(1.,2.), y = c(1L,2L), z = c("1","2"))
 #' sapply(DT, class)
-#' MSqb2::char2fact(DT)
+#' char2fact(DT)
 #' sapply(DT, class)
 #' @export
-char2fact <- function(dt) {
-  if (!any(class(dt) %in% c("data.table", "data.frame"))) {
+char2fact <- function(dat) {
+  if (!any(class(dat) %in% c("data.table", "data.frame"))) {
     stop("Input must be of class data.table or data.frame.")
-  } else if (!is.data.table(dt)) {
-    rn <- rownames(dt)
-    setDT(dt)
+  } else if (!is.data.table(dat)) {
+    rn <- rownames(dat)
+    setDT(dat)
     setback2df <- TRUE
   } else {
     setback2df <- FALSE
   }
 
-  changeCols <- names(Filter(is.character, dt))
+  changeCols <- names(Filter(is.character, dat))
   if (length(changeCols) > 0) {
-    dt[, (changeCols) := lapply(.SD, \(x) {
+    dat[, (changeCols) := lapply(.SD, \(x) {
       is.na(x) <- x %in% c("NA", "<NA>")
       x <- factor(x, levels = unique(x))
     }), .SDcols = changeCols]
   }
 
   # drop excluded levels
-  fc <- names(Filter(is.factor, dt))
-  dt[, (fc) := lapply(.SD, droplevels), .SDcols = fc]
+  fc <- names(Filter(is.factor, dat))
+  dat[, (fc) := lapply(.SD, droplevels), .SDcols = fc]
   # sort based on alphanumeric -> natural (lexicographic)
-  dt[, (fc) := lapply(.SD, \(x) factor(x, levels = unique(x) %>% stringr::str_sort(., numeric = TRUE))), .SDcols = fc]
+  dat[, (fc) := lapply(.SD, \(x) factor(x, levels = unique(x) %>%
+                                          str_sort_numeric(.))), .SDcols = fc]
 
 
-  if (setback2df) dt <- data.frame(dt, row.names = rn)
-  return(dt)
+  if (setback2df) dat <- data.frame(dat, row.names = rn)
+  return(dat)
 }
 
 
@@ -691,10 +716,9 @@ char2fact <- function(dt) {
 #'
 #' Converts data.frame or data.table columns of class integer to factor.
 #'
-#' @import data.table
-#' @param dt Input data of class data.table or data.frame.
-#' @return The input data \code{dt} with columns of class integer converted to factor.
-#' @seealso \code{\link{MSqb2::char2fact}}
+#' @param dat Input data of class data.table or data.frame.
+#' @return The input data \code{dat} with columns of class integer converted to factor.
+#' @seealso \code{\link{char2fact}}
 #' @examples
 #' DT <- data.table(x = c(1., 2.), y = c(1L, 2L), z = c("1", "2"))
 #' # DT <- data.frame(x = c(1.,2.), y = c(1L,2L), z = c("1","2"))
@@ -702,24 +726,24 @@ char2fact <- function(dt) {
 #' int2fact(DT)
 #' sapply(DT, class)
 #' @export
-int2fact <- function(dt) {
-  if (!any(class(dt) %in% c("data.table", "data.frame"))) {
+int2fact <- function(dat) {
+  if (!any(class(dat) %in% c("data.table", "data.frame"))) {
     stop("Input must be of class data.table or data.frame.")
-  } else if (!is.data.table(dt)) {
-    rn <- rownames(dt)
-    setDT(dt)
+  } else if (!is.data.table(dat)) {
+    rn <- rownames(dat)
+    setDT(dat)
     setback2df <- TRUE
   } else {
     setback2df <- FALSE
   }
 
-  changeCols <- c(names(Filter(is.integer, dt)))
+  changeCols <- c(names(Filter(is.integer, dat)))
   if (length(changeCols) > 0) {
-    dt[, (changeCols) := lapply(.SD, as.factor), .SDcols = changeCols]
+    dat[, (changeCols) := lapply(.SD, as.factor), .SDcols = changeCols]
   }
 
-  if (setback2df) dt <- data.frame(dt, row.names = rn)
-  return(dt)
+  if (setback2df) dat <- data.frame(dat, row.names = rn)
+  return(dat)
 }
 
 
@@ -739,17 +763,12 @@ int2fact <- function(dt) {
 #'
 #' @return The updated model formula as a character string, with any missing parameters removed if the user chooses to proceed.
 #'
-#' @examples
-#' dsgn <- data.frame(sampleID = 1:5, group = factor(c("A", "B", "A", "B", "A")))
-#' frm <- "~ group + batch"
-#' .match_ModelFormula_metadata(dsgn, frm)
-#'
-#' @import glue
+#' @importFrom glue glue
 .match_ModelFormula_metadata <- function(dsgn, frm) {
   fit.para <- c(all.vars(as.formula(frm)))
   if (any(!fit.para %in% names(dsgn))) {
     xpara <- setdiff(fit.para, names(dsgn))
-    MSqb2:::.logg(
+    .logg(
       TRACE,
       glue(
         "The following parameter(s) that used in the model formula do ",
@@ -768,7 +787,7 @@ int2fact <- function(dt) {
     mtch <- select.list(c("yes", "no"))
 
     if (mtch == "yes") {
-      MSqb2:::.logg(ERROR, "Error in matching model formula and cathegorical variables in the metadata.")
+      .logg(ERROR, "Error in matching model formula and cathegorical variables in the metadata.")
     } else {
       frm <- gsub(xpara, "NULL", frm)
     }
@@ -797,15 +816,17 @@ int2fact <- function(dt) {
 #' The function expands the configuration list and exports it to the top environment, making it available for further processing in the workflow.
 #'
 #' @return The function does not return a value directly. Instead, it modifies the environment by expanding and exporting the configuration parameters.
-#'
+#' @importFrom glue glue
 #' @examples
+#' \dontrun{
 #' # Assuming `build.para` is already defined
 #' readConfigPara(build.para = build.para, config.file = "path/to/config.R", config.type = "wf")
+#' }
 #'
 #' @export
 readConfigPara <- function(build.para, config.para, config.file, config.type, ...) {
   if (!exists("build.para", mode = "list")) {
-    MSqb2:::.logg(FATAL, glue(
+    .logg(FATAL, glue(
       "build.para not provided. ",
       "Please run msqb_build() to generate build parameters (see vignette)."
     ))
@@ -821,7 +842,7 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
 
   if ((exists("config.file") && !is.null(config.file)) &
     (exists("config.para") && !is.null(config.para))) {
-    MSqb2:::.logg(TRACE, glue(
+    .logg(TRACE, glue(
       "Both {conf.str[1]} and {conf.str[2]} have been provided! ",
       "Do you want the parameters stored in {conf.str[1]} to be loaded? ",
       "By chosing NO the parameters in {conf.str[2]} will be loaded and ",
@@ -873,12 +894,6 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
 #'
 #' @return A `data.table` in long format with the specified row and column properties, and a value column.
 #'
-#' @examples
-#' # Example with a matrix input
-#' matrix_data <- matrix(1:9, nrow = 3, dimnames = list(c("A&.&.&1", "B&.&.&2", "C&.&.&3"), c("X&.&.&1", "Y&.&.&2", "Z&.&.&3")))
-#' .w2l(matrix_data, val = "Value", col.p = "Group", row.p = "Category")
-#'
-#' @import data.table
 #' @export
 .w2l <- function(dw,
                  val,
@@ -900,7 +915,7 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
   dl[, (col.p) := tstrsplit(dummy, sp, fixed = TRUE)]
   dl[, dummy := NULL]
 
-  dl <- MSqb2::char2fact(dl)
+  dl <- char2fact(dl)
   return(dl)
 }
 
@@ -935,12 +950,11 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
 #'   Group = rep(c("X", "Y", "Z"), 3),
 #'   Abundance = 1:9
 #' )
-#' wide_data <- .l2w(long_data, col.p = "Group", row.p = "Category")
+#' wide_data <- .l2w(long_data, col.p = "Group", row.p = "Category", val = "Abundance")
 #'
 #' # Example returning a matrix
-#' wide_matrix <- .l2w(long_data, col.p = "Group", row.p = "Category", asMat = TRUE, Mat.rownm = "Category")
+#' wide_matrix <- .l2w(long_data, col.p = "Group", row.p = "Category", val = "Abundance", asMat = TRUE, Mat.rownm = "Category")
 #'
-#' @import data.table
 #' @export
 .l2w <- function(dl,
                  col.p,
@@ -984,7 +998,7 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
 #'
 #' This function cleans and standardizes the column names and optionally the data within a `data.table` or vector by replacing or removing symbols that may interfere with design formulas. It is particularly useful in preprocessing data for statistical analysis where certain characters in column names or data values can cause issues.
 #'
-#' @param dt A `data.table` or vector containing the data to be cleaned.
+#' @param dat A `data.table` or vector containing the data to be cleaned.
 #' @param complete.check Logical; if `TRUE`, the function will also clean the content within the columns of the `data.table`. Defaults to `FALSE`.
 #' @param subsymDT A `data.table` specifying the symbols to be replaced or removed. It should contain two columns: `"symout"` (the symbol to be replaced) and `"symin"` (the replacement). Defaults to a table with common problematic symbols.
 #'
@@ -1006,21 +1020,21 @@ readConfigPara <- function(build.para, config.para, config.file, config.type, ..
 #'
 #' @return A list with two elements:
 #' \itemize{
-#'   \item `"cln.nm.dt"`: The cleaned `data.table` or vector.
-#'   \item `"ref.name.tbl"`: A reference table showing the original and cleaned column names (if `dt` is a `data.table`).
+#'   \item `"cln.nm.dat"`: The cleaned `data.table` or vector.
+#'   \item `"ref.name.tbl"`: A reference table showing the original and cleaned column names (if `dat` is a `data.table`).
 #' }
 #'
 #' @examples
 #' library(data.table)
-#' dt <- data.table(`Column (1)` = c(1, 2), `Another+Column` = c(3, 4))
-#' result <- cleanDataPara(dt)
-#' cleaned_data <- result$cln.nm.dt
+#' dat <- data.table(`Column (1)` = c(1, 2), `Another+Column` = c(3, 4))
+#' result <- clean_column_names(dat)
+#' cleaned_data <- result$cln.nm.dat
 #' reference_table <- result$ref.name.tbl
 #'
-#' @import limma
+#' @importFrom limma strsplit2
 #' @export
 
-cleanDataPara <- function(dt, complete.check = FALSE, # export2env = FALSE
+clean_column_names <- function(dat, complete.check = FALSE, # export2env = FALSE
                           subsymDT = data.table(
                             symout = c("\\~", "\\+", "\\:", "\\|", "\\-", "\\(", "\\)", "\\/", " "),
                             symin = c("", ".", "", "", "_", "", "", ".", "")
@@ -1031,9 +1045,9 @@ cleanDataPara <- function(dt, complete.check = FALSE, # export2env = FALSE
 
 
 
-  .meltsub.f <- function(dt) {
+  .meltsub.f <- function(dat) {
     return(
-      melt(dt, id.vars = "var")[, -"variable"] %>%
+      melt(dat, id.vars = "var")[, -"variable"] %>%
         .[, ii := seq_along(value), by = "var"] %>%
         dcast(., formula = ii ~ var) %>%
         .[, -"ii"]
@@ -1042,36 +1056,36 @@ cleanDataPara <- function(dt, complete.check = FALSE, # export2env = FALSE
 
 
 
-  if (is.data.table(dt)) {
-    nmDT <- data.table(original.names = names(dt)) # old names with punctuations
+  if (is.data.table(dat)) {
+    nmDT <- data.table(original.names = names(dat)) # old names with punctuations
     for (is in seq(nrow(subsymDT))) {
-      names(dt) <- gsub(subsymDT$symout[is], subsymDT$symin[is], names(dt))
+      names(dat) <- gsub(subsymDT$symout[is], subsymDT$symin[is], names(dat))
     }
-    names(dt) <- make.names(names(dt))
-    names(dt) <- sapply(names(dt), function(x) {
+    names(dat) <- make.names(names(dat))
+    names(dat) <- sapply(names(dat), function(x) {
       limma::strsplit2(x, "\\.") %>%
         .[nchar(.) > 0] %>%
         paste(., collapse = ".")
     })
-    nmDT[, new.names := names(dt)] # new names with punctuations
+    nmDT[, new.names := names(dat)] # new names with punctuations
 
     if (complete.check) {
       for (is in seq(nrow(subsymDT))) {
         for (para in nmDT$new.names) {
-          dt[, (para) := lapply(.SD, function(x) gsub(subsymDT$symout[is], subsymDT$symin[is], x, perl = TRUE)), .SDcols = para]
+          dat[, (para) := lapply(.SD, function(x) gsub(subsymDT$symout[is], subsymDT$symin[is], x, perl = TRUE)), .SDcols = para]
         }
       }
     }
   }
 
-  if (is.vector(dt)) {
+  if (is.vector(dat)) {
     for (is in seq(nrow(subsymDT))) {
-      dt <- gsub(subsymDT$symout[is], subsymDT$symin[is], dt)
+      dat <- gsub(subsymDT$symout[is], subsymDT$symin[is], dat)
       nmDT <- NULL
     }
   }
 
-  dout <- list("cln.nm.dt" = dt, "ref.name.tbl" = nmDT)
+  dout <- list("cln.nm.dat" = dat, "ref.name.tbl" = nmDT)
 
   return(dout)
 }
@@ -1084,7 +1098,7 @@ cleanDataPara <- function(dt, complete.check = FALSE, # export2env = FALSE
 #'
 #' This function orders a `data.table` based on alphanumeric sorting of a specified column. The sorting is done by extracting numeric components from the column values while preserving the overall alphanumeric order. It is particularly useful for cases where numeric sequences are embedded within text.
 #'
-#' @param dt A `data.table` containing the data to be ordered.
+#' @param dat A `data.table` containing the data to be ordered.
 #' @param x A string specifying the column name to be ordered. The column can be either character or factor type.
 #'
 #' @details
@@ -1096,13 +1110,13 @@ cleanDataPara <- function(dt, complete.check = FALSE, # export2env = FALSE
 #'
 #' @examples
 #' library(data.table)
-#' dt <- data.table(id = c("item1", "item10", "item2", "item20"))
-#' ordered_dt <- order.num(dt, "id")
+#' dat <- data.table(id = c("item1", "item10", "item2", "item20"))
+#' ordered_dt <- order.num(dat, "id")
 #' print(ordered_dt)
 #'
 #' @export
-order.num <- function(dt, x) {
-  xo <- dt[, ..x] %>% unlist()
+order.num <- function(dat, x) {
+  xo <- dat[, ..x] %>% unlist()
   fct <- ifelse(is.factor(xo), TRUE, FALSE)
   if (fct) {
     xo %>%
@@ -1114,7 +1128,32 @@ order.num <- function(dt, x) {
     as.numeric() %>%
     order() %>%
     xo[.]
-  dt <- dt[order(match(get(x), ix))]
-  if (fct) dt[, (x) := factor(get(x), levels = ix)]
-  return(dt)
+  dat <- dat[order(match(get(x), ix))]
+  if (fct) dat[, (x) := factor(get(x), levels = ix)]
+  return(dat)
 }
+
+
+
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%
+#' Capitalize the First Letter of Each String
+#'
+#' This function takes a character vector and returns the vector with the first letter of each string capitalized and the remaining letters in lowercase.
+#'
+#' @param x A character vector for which the first letter of each element should be capitalized.
+#'
+#' @return A character vector with the first letter of each string capitalized.
+#' @export
+#'
+#' @examples
+#' capitalize_first_char(c("apple", "banana", "cherry"))
+#' # Returns: "Apple" "Banana" "Cherry"
+capitalize_first_char <- function(x) {
+  paste0(toupper(substr(x, 1, 1)), tolower(substr(x, 2, nchar(x))))
+}
+
+
+
+
