@@ -1,7 +1,7 @@
 Package: MSqb2
 Type: Package
 Title: Differential expression analysis of MS-based Proteomics data
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: person("Farhad", "Shakeri", 
                     role = c("aut", "cre"),
                     email = "farhad.shakeri@uni-bonn.de")
