@@ -39,3 +39,4 @@ biocViews:
 License: Artistic-2.0
 RoxygenNote: 7.3.2
 Roxygen: list(markdown = TRUE)
+URL: https://fredrious.github.io/MSqb2/
